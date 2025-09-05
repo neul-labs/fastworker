@@ -1,0 +1,42 @@
+[tool.poetry]
+name = "fastqueue"
+version = "0.1.0"
+description = "A brokerless task queue using nng patterns"
+authors = ["Dipankar Sarkar <me@dipankar.name>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/yourusername/fastqueue"
+repository = "https://github.com/yourusername/fastqueue"
+documentation = "https://github.com/yourusername/fastqueue/blob/main/docs/index.md"
+keywords = ["task-queue", "celery", "nng", "brokerless", "async", "fastapi"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pynng = "^0.8.1"
+pydantic = "^2.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+black = "^24.0.0"
+flake8 = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+fastqueue = "fastqueue.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["fastqueue/tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
