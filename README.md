@@ -1,68 +1,119 @@
 # FastQueue
 
-A brokerless task queue using nng patterns, featuring reliable delivery, priority queues, load balancing, and service discovery.
+Add background workers to your Python applications in seconds, without the complexity.
 
 [![PyPI version](https://badge.fury.io/py/fastqueue.svg)](https://badge.fury.io/py/fastqueue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+## Why FastQueue?
 
-- **Brokerless Architecture**: No central broker required, reducing single points of failure
-- **Native NNG Patterns**: Leverages nng's built-in patterns for reliability and performance
-- **Priority Queues**: Support for task prioritization (CRITICAL, HIGH, NORMAL, LOW)
-- **Load Balancing**: Automatic distribution of tasks to available workers
-- **Automatic Service Discovery**: Transparent worker discovery with no manual configuration
-- **Reliable Delivery**: Guaranteed message delivery with retry mechanisms
-- **Easy to Use**: Simple API similar to Celery
-- **FastAPI Integration**: Seamless integration with FastAPI applications
+Adding background processing to your application shouldn't be hard. FastQueue makes it incredibly simple to offload time-consuming tasks without dealing with complex brokers, queues, or configurations.
 
-## Installation
+### The Problem
+Traditional task queues require:
+- Setting up and maintaining a message broker (Redis, RabbitMQ, etc.)
+- Managing separate queue servers
+- Dealing with connection issues and reliability concerns
+- Complex configuration and deployment
+
+### The FastQueue Solution
+FastQueue eliminates all that complexity:
+- **No brokers to manage** - Workers communicate directly with each other
+- **Automatic discovery** - Workers find each other automatically
+- **Zero configuration** - Start workers and you're done
+- **Built-in reliability** - Tasks are retried automatically if they fail
+
+## Quick Start
+
+### 1. Install FastQueue
 
 ```bash
 pip install fastqueue
 ```
 
-## Quick Start
+### 2. Define Your Tasks
 
-### 1. Define Tasks
+Create `tasks.py`:
 
 ```python
 from fastqueue import task
 
 @task
-def add(x: int, y: int) -> int:
-    """Add two numbers."""
-    return x + y
+def send_email(recipient: str, subject: str, body: str):
+    """Send an email - this might take a few seconds."""
+    # Your email sending logic here
+    print(f"Email sent to {recipient}")
 
 @task
-def multiply(x: int, y: int) -> int:
-    """Multiply two numbers."""
-    return x * y
+def process_image(image_path: str):
+    """Process an image - this might take a while."""
+    # Your image processing logic here
+    print(f"Processed image: {image_path}")
+
+@task
+def generate_report(data: dict):
+    """Generate a report - this might be CPU intensive."""
+    # Your report generation logic here
+    print("Report generated")
 ```
 
-### 2. Start Workers
+### 3. Start Your Workers
 
-Start one or more workers in separate terminals:
+In one terminal, start as many workers as you need:
 
 ```bash
-# Start workers (automatically discover each other)
+# Start your first worker
 fastqueue worker --worker-id worker1 --task-modules tasks
+
+# In another terminal, start a second worker for more power
 fastqueue worker --worker-id worker2 --task-modules tasks
 ```
 
-### 3. Submit Tasks
+That's it! Your workers automatically discover each other and start sharing the workload.
 
-Submit tasks using the CLI:
+### 4. Use Tasks in Your Application
 
-```bash
-# Submit a task
-fastqueue submit --task-name add --args 2 3
+```python
+# In your main application
+from fastqueue import Client
 
-# Submit a high priority task
-fastqueue submit --task-name multiply --args 4 7 --priority high
+# Create a client to submit tasks
+client = Client()
+
+# Submit tasks to be processed in the background
+await client.delay("send_email", "user@example.com", "Hello", "Welcome!")
+await client.delay("process_image", "/path/to/image.jpg")
+await client.delay("generate_report", {"sales": 1000})
 ```
 
-### 4. Use in FastAPI Applications
+Or use the CLI:
+
+```bash
+# Submit tasks from the command line
+fastqueue submit --task-name send_email --args user@example.com "Hello" "Welcome!"
+fastqueue submit --task-name process_image --args /path/to/image.jpg
+```
+
+## Key Benefits
+
+### 🚀 Effortless Scaling
+Need more processing power? Just start another worker. No configuration needed.
+
+### 🔧 Zero Maintenance
+No brokers to monitor, no queues to manage. Just your workers doing what they do best.
+
+### 🔄 Automatic Load Balancing
+Tasks are automatically distributed across all available workers.
+
+### ⚡ Priority Handling
+Mark important tasks as "critical" to ensure they get processed first.
+
+### 🛡️ Built-in Reliability
+If a worker fails, tasks are automatically retried on other workers.
+
+## FastAPI Integration
+
+FastQueue works seamlessly with FastAPI:
 
 ```python
 from fastapi import FastAPI
@@ -72,8 +123,9 @@ app = FastAPI()
 client = Client()
 
 @task
-def process_data(data: dict) -> dict:
-    return {"result": "processed"}
+def process_user_data(user_id: int):
+    # Process user data in the background
+    pass
 
 @app.on_event("startup")
 async def startup_event():
@@ -83,37 +135,30 @@ async def startup_event():
 async def shutdown_event():
     client.stop()
 
-@app.post("/process/")
-async def process_endpoint(data: dict):
-    result = await client.delay("process_data", data)
-    return result
+@app.post("/users/{user_id}/process")
+async def process_user(user_id: int):
+    # This returns immediately while processing happens in the background
+    await client.delay("process_user_data", user_id)
+    return {"message": "Processing started"}
 ```
 
-## Documentation
+## How It Works
 
-See the [documentation](docs/index.md) for detailed information:
+FastQueue uses advanced networking patterns that allow workers to communicate directly with each other, eliminating the need for a central broker. This makes your system more reliable and easier to manage.
+
+When you start workers, they automatically discover each other on the network and begin sharing work. If a worker goes down, others continue processing tasks without interruption.
+
+## Documentation
 
 - [API Reference](docs/api.md)
 - [Worker Guide](docs/workers.md)
 - [Client Guide](docs/clients.md)
 - [FastAPI Integration](docs/fastapi.md)
-- [NNG Patterns Used](docs/nng_patterns.md)
 
-## Development
+## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/fastqueue.git
-cd fastqueue
-
-# Install dependencies
-poetry install
-
-# Run tests
-poetry run pytest
-
-# Format code
-poetry run black .
+pip install fastqueue
 ```
 
 ## License
