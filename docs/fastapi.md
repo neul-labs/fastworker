@@ -264,6 +264,98 @@ async def process_data(data: dict):
         raise HTTPException(status_code=500, detail=result.error)
 ```
 
+## Task Completion Callbacks
+
+FastQueue supports task completion callbacks using NNG messaging patterns. This allows your FastAPI application to receive notifications when tasks are completed, enabling more responsive and interactive applications.
+
+### Using Callbacks
+
+To submit a task with a callback, use the `delay_with_callback` method:
+
+```python
+@app.post("/process-with-callback/")
+async def process_with_callback(data: dict, callback_address: str):
+    """Process data with a callback when finished."""
+    result = await client.delay_with_callback(
+        "process_data", 
+        callback_address, 
+        data,
+        callback_data={"source": "fastapi_endpoint"}
+    )
+    
+    if result.status == "success":
+        return {"message": "Task submitted", "task_id": result.task_id}
+    else:
+        raise HTTPException(status_code=500, detail=result.error)
+```
+
+### Receiving Callbacks
+
+To receive callbacks in your FastAPI application, you can create a listener endpoint:
+
+```python
+from fastqueue.patterns.nng_patterns import PairPattern
+from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+
+@app.post("/start-processing-with-internal-callback/")
+async def start_processing_with_internal_callback(data: dict):
+    """Start processing with an internal callback listener."""
+    # Create a unique callback address
+    callback_address = f"tcp://127.0.0.1:{5000 + hash(str(data)) % 1000}"
+    
+    # Start callback listener in the background
+    asyncio.create_task(listen_for_callback(callback_address))
+    
+    # Submit task with callback
+    result = await client.delay_with_callback(
+        "process_data", 
+        callback_address, 
+        data,
+        callback_data={"endpoint": "/task-completed/"}
+    )
+    
+    return {"task_id": result.task_id, "callback_address": callback_address}
+
+async def listen_for_callback(callback_address: str):
+    """Listen for task completion callbacks."""
+    try:
+        # Create a pair pattern to receive callbacks
+        callback_listener = PairPattern(callback_address, is_server=True)
+        await callback_listener.start()
+        
+        # Listen for one callback
+        data = await callback_listener.recv()
+        callback_data = TaskSerializer.deserialize(data, SerializationFormat.JSON)
+        
+        # Process the callback (e.g., update database, send WebSocket message, etc.)
+        await handle_task_completion(callback_data)
+        
+        callback_listener.close()
+    except Exception as e:
+        print(f"Error in callback listener: {e}")
+
+async def handle_task_completion(callback_data: dict):
+    """Handle task completion notification."""
+    print(f"Task completed: {callback_data}")
+    # Update database, send WebSocket message, trigger another task, etc.
+```
+
+### Callback Data Structure
+
+When a task completes, the callback will receive a dictionary with the following structure:
+
+```python
+{
+    "task_id": "unique-task-id",
+    "status": "success|failure",
+    "result": "task result data (if successful)",
+    "error": "error message (if failed)",
+    "started_at": "ISO timestamp",
+    "completed_at": "ISO timestamp",
+    "callback_data": "additional data provided when task was submitted"
+}
+```
+
 ## Best Practices
 
 1. **Initialize Client Once**: Create a single client instance per application
@@ -273,3 +365,5 @@ async def process_data(data: dict):
 5. **Implement Health Checks**: Monitor worker availability and system health
 6. **Configure Timeouts**: Set appropriate timeouts based on task complexity
 7. **Log Important Events**: Log task submissions, completions, and failures
+8. **Handle Callbacks Gracefully**: Implement proper error handling for callback listeners
+9. **Use Unique Callback Addresses**: Ensure callback addresses are unique to avoid conflicts

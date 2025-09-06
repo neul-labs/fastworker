@@ -19,6 +19,11 @@ class TaskStatus(str, Enum):
     SUCCESS = "success"
     FAILURE = "failure"
 
+class CallbackInfo(BaseModel):
+    """Callback information for task completion notifications."""
+    address: str  # NNG address to send callback to
+    data: Optional[Dict[str, Any]] = None  # Additional data to send with callback
+
 class Task(BaseModel):
     """Task model."""
     id: str
@@ -32,6 +37,7 @@ class Task(BaseModel):
     status: TaskStatus = TaskStatus.PENDING
     result: Any = None
     error: Optional[str] = None
+    callback: Optional[CallbackInfo] = None  # Callback information
     
     def __init__(self, **data):
         if 'id' not in data:
@@ -48,3 +54,4 @@ class TaskResult(BaseModel):
     error: Optional[str] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    callback: Optional[CallbackInfo] = None  # Callback information

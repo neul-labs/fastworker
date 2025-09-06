@@ -90,6 +90,25 @@ async def process_data(data: dict):
     else:
         return {"error": "FastQueue client not available"}
 
+@app.post("/process_data_with_callback/")
+async def process_data_with_callback(data: dict, callback_address: str):
+    """Process data asynchronously with a callback when finished."""
+    if client:
+        # Submit async task to FastQueue with callback
+        result = await client.delay_with_callback(
+            "async_data_processing", 
+            callback_address, 
+            data, 
+            priority=TaskPriority.NORMAL,
+            callback_data={"endpoint": "/process_data_with_callback/"}
+        )
+        if result.status == "success":
+            return {"message": "Data processing started", "task_id": result.task_id}
+        else:
+            return {"error": result.error}
+    else:
+        return {"error": "FastQueue client not available"}
+
 @app.get("/")
 async def root():
     """Root endpoint."""
@@ -97,12 +116,13 @@ async def root():
 
 # To run this example:
 # 1. Start one or more FastQueue workers in separate terminals:
-#    fastqueue worker --worker-id worker1 --task-modules fastqueue_example
+#    fastqueue worker --worker-id worker1 --task-modules fastqueue.examples.tasks
 #
 # 2. Run this FastAPI application:
-#    uvicorn fastqueue_example:app --reload
+#    uvicorn fastqueue.examples.fastapi_example:app --reload
 #
 # 3. Make requests to the endpoints:
 #    curl -X POST "http://127.0.0.1:8000/register_user/?user_id=1&email=test@example.com"
 #    curl -X POST "http://127.0.0.1:8000/send_notification/?user_id=1&message=Hello"
 #    curl -X POST "http://127.0.0.1:8000/process_data/" -H "Content-Type: application/json" -d '{"key": "value"}'
+#    curl -X POST "http://127.0.0.1:8000/process_data_with_callback/?callback_address=tcp://127.0.0.1:5560" -H "Content-Type: application/json" -d '{"key": "value"}'

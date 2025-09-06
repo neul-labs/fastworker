@@ -6,10 +6,11 @@ from typing import Dict, List, Optional, Callable
 from datetime import datetime
 from fastqueue.patterns.nng_patterns import (
     SurveyorRespondentPattern, 
-    BusPattern
+    BusPattern,
+    PairPattern
 )
 from fastqueue.tasks.registry import task_registry
-from fastqueue.tasks.models import Task, TaskResult, TaskStatus, TaskPriority
+from fastqueue.tasks.models import Task, TaskResult, TaskStatus, TaskPriority, CallbackInfo
 from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
 
 logger = logging.getLogger(__name__)
@@ -167,10 +168,16 @@ class Worker:
                 status=TaskStatus.SUCCESS,
                 result=result,
                 started_at=task.started_at,
-                completed_at=datetime.now()
+                completed_at=datetime.now(),
+                callback=task.callback
             )
             
             logger.info(f"Task {task.id} completed successfully")
+            
+            # Send callback if specified
+            if task.callback:
+                await self._send_callback(task_result)
+            
             return task_result
             
         except Exception as e:
@@ -180,11 +187,50 @@ class Worker:
                 status=TaskStatus.FAILURE,
                 error=str(e),
                 started_at=task.started_at,
-                completed_at=datetime.now()
+                completed_at=datetime.now(),
+                callback=task.callback
             )
             
             logger.error(f"Task {task.id} failed: {e}")
+            
+            # Send callback if specified
+            if task.callback:
+                await self._send_callback(task_result)
+            
             return task_result
+    
+    async def _send_callback(self, task_result: TaskResult):
+        """Send callback notification when task is completed."""
+        if not task_result.callback:
+            return
+            
+        try:
+            # Create a pair pattern to send the callback
+            callback_socket = PairPattern(task_result.callback.address, is_server=False)
+            await callback_socket.start()
+            
+            try:
+                # Prepare callback data
+                callback_data = {
+                    "task_id": task_result.task_id,
+                    "status": task_result.status.value,
+                    "result": task_result.result,
+                    "error": task_result.error,
+                    "started_at": task_result.started_at.isoformat() if task_result.started_at else None,
+                    "completed_at": task_result.completed_at.isoformat() if task_result.completed_at else None,
+                    "callback_data": task_result.callback.data
+                }
+                
+                # Serialize and send callback data
+                serialized_data = TaskSerializer.serialize(callback_data, self.serialization_format)
+                await callback_socket.send(serialized_data)
+                
+                logger.info(f"Callback sent for task {task_result.task_id} to {task_result.callback.address}")
+            finally:
+                callback_socket.close()
+                
+        except Exception as e:
+            logger.error(f"Failed to send callback for task {task_result.task_id}: {e}")
     
     def stop(self):
         """Stop the worker."""
