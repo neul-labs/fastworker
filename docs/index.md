@@ -1,110 +1,85 @@
-# FastQueue
+# FastQueue Documentation
 
-A brokerless task queue using nng patterns, featuring reliable delivery, priority queues, load balancing, and service discovery.
+A brokerless task queue for Python applications with automatic worker discovery and priority handling.
 
-## Features
+## Overview
 
-- **Brokerless Architecture**: No central broker required, reducing single points of failure
-- **Native NNG Patterns**: Leverages nng's built-in patterns for reliability and performance
-- **Priority Queues**: Support for task prioritization
-- **Load Balancing**: Automatic distribution of tasks to available workers
-- **Automatic Service Discovery**: Transparent worker discovery with no manual configuration
-- **Reliable Delivery**: Guaranteed message delivery with retry mechanisms
-- **Easy to Use**: Simple API similar to Celery
-- **FastAPI Integration**: Seamless integration with FastAPI applications
+FastQueue eliminates the complexity of traditional task queues by removing the need for message brokers like Redis or RabbitMQ. Workers communicate directly using NNG (Next Generation Networking) patterns, providing:
 
-## Installation
-
-```bash
-pip install fastqueue
-```
+- **Fault Tolerance** - No single point of failure
+- **Auto-Discovery** - Workers find each other automatically
+- **Priority Queues** - Critical, high, normal, and low priority tasks
+- **Load Balancing** - Tasks distributed across available workers
 
 ## Quick Start
 
-### 1. Define Tasks
+1. **Install FastQueue**
+   ```bash
+   pip install fastqueue
+   ```
 
-```python
-from fastqueue import task
+2. **Define Tasks**
+   ```python
+   # tasks.py
+   from fastqueue import task
 
-@task
-def add(x: int, y: int) -> int:
-    """Add two numbers."""
-    return x + y
+   @task
+   def process_data(data: dict):
+       return {"processed": data}
+   ```
 
-@task
-def multiply(x: int, y: int) -> int:
-    """Multiply two numbers."""
-    return x * y
-```
+3. **Start Workers**
+   ```bash
+   fastqueue worker --worker-id worker1 --task-modules tasks
+   ```
 
-### 2. Start Workers
+4. **Submit Tasks**
+   ```python
+   from fastqueue import Client
 
-Start one or more workers in separate terminals:
+   client = Client()
+   await client.start()
+   result = await client.delay("process_data", {"key": "value"})
+   client.stop()
+   ```
 
-```bash
-# Start workers (automatically discover each other)
-fastqueue worker --worker-id worker1 --task-modules tasks
-fastqueue worker --worker-id worker2 --task-modules tasks
-```
+## Documentation Sections
 
-Note: Workers automatically discover each other through built-in service discovery. No separate service discovery process is needed.
+### Core Components
+- [**API Reference**](api.md) - Complete API documentation
+- [**Workers**](workers.md) - Worker configuration and management
+- [**Clients**](clients.md) - Client usage and configuration
 
-### 3. Submit Tasks
+### Integration Guides
+- [**FastAPI Integration**](fastapi.md) - Web application integration
+- [**NNG Patterns**](nng_patterns.md) - Network communication details
 
-Submit tasks using the CLI:
+## Architecture
 
-```bash
-# Submit a task
-fastqueue submit --task-name add --args 2 3
+FastQueue uses a distributed architecture where:
 
-# Submit a high priority task
-fastqueue submit --task-name multiply --args 4 7 --priority high
-```
+1. **Workers** register themselves and listen for tasks
+2. **Clients** discover workers and submit tasks
+3. **Tasks** are distributed based on priority and worker availability
+4. **Results** are returned directly to the client
 
-### 4. Use in FastAPI Applications
+No central coordinator or message broker is required.
 
-FastQueue integrates seamlessly with FastAPI:
+## Key Features
 
-```python
-from fastapi import FastAPI
-from fastqueue import task, Client
+- **Zero Configuration** - Works out of the box
+- **High Performance** - Direct peer-to-peer communication
+- **Scalable** - Add workers dynamically
+- **Reliable** - Built-in retries and error handling
+- **Python Native** - Type hints and async/await support
 
-app = FastAPI()
-client = Client()
+## Requirements
 
-@task
-def process_data(data: dict) -> dict:
-    # Process data
-    return {"result": "processed"}
+- Python 3.12+
+- pynng (network communication)
+- pydantic (data validation)
 
-@app.on_event("startup")
-async def startup_event():
-    await client.start()
+## Support
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    client.stop()
-
-@app.post("/process/")
-async def process_endpoint(data: dict):
-    result = await client.delay("process_data", data)
-    return result
-```
-
-Start workers to process the tasks:
-
-```bash
-fastqueue worker --worker-id worker1 --task-modules your_app_module
-```
-
-## Documentation
-
-- [API Reference](api.md)
-- [Worker Guide](workers.md)
-- [Client Guide](clients.md)
-- [FastAPI Integration](fastapi.md)
-- [NNG Patterns Used](nng_patterns.md)
-
-## License
-
-MIT
+- [GitHub Issues](https://github.com/dipankar/fastqueue/issues) - Bug reports and feature requests
+- [Contributing Guide](../CONTRIBUTING.md) - Development guidelines

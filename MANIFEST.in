@@ -7,3 +7,7 @@ include pyproject.toml
 recursive-include fastqueue *.py
 recursive-include docs *.md
 recursive-include fastqueue/examples *.py
+
+# Exclude unnecessary files
+global-exclude *.pyc
+global-exclude __pycache__/*

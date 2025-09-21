@@ -56,20 +56,8 @@ class Client:
             except Exception as e:
                 logger.error(f"Error in worker discovery: {e}")
     
-    async def submit_task(self, 
-                         task_name: str,
-                         args: tuple = (),
-                         kwargs: dict = {},
-                         priority: TaskPriority = TaskPriority.NORMAL) -> TaskResult:
-        """Submit a task to workers."""
-        # Create task
-        task = Task(
-            name=task_name,
-            args=args,
-            kwargs=kwargs,
-            priority=priority
-        )
-        
+    async def _submit_task_internal(self, task: Task) -> TaskResult:
+        """Internal method to submit a task to workers."""
         # Check if we have available workers
         if not self.workers:
             # Try to discover workers
@@ -80,32 +68,32 @@ class Client:
                     status=TaskStatus.FAILURE,
                     error="No workers available"
                 )
-        
+
         # Use the first available worker
         worker_id, worker_address = next(iter(self.workers))
-        priority_address = f"{worker_address}_{priority.value}"
-        
+        priority_address = f"{worker_address}_{task.priority.value}"
+
         # Try to submit task with retries
         for attempt in range(self.retries + 1):
             try:
                 # Create surveyor for this priority
                 surveyor = SurveyorRespondentPattern(priority_address, is_surveyor=True)
                 await surveyor.start()
-                
+
                 try:
                     # Serialize and send task
-                    task_data = TaskSerializer.serialize(task.dict(), self.serialization_format)
+                    task_data = TaskSerializer.serialize(task.model_dump(), self.serialization_format)
                     await surveyor.send(task_data)
-                    
+
                     # Receive result with timeout
                     result_data = await asyncio.wait_for(surveyor.recv(), timeout=self.timeout)
                     result_dict = TaskSerializer.deserialize(result_data, self.serialization_format)
                     result = TaskResult(**result_dict)
-                    
+
                     return result
                 finally:
                     surveyor.close()
-                    
+
             except asyncio.TimeoutError:
                 if attempt < self.retries:
                     logger.warning(f"Task submission timed out, retrying... (attempt {attempt + 1}/{self.retries})")
@@ -128,6 +116,22 @@ class Client:
                         status=TaskStatus.FAILURE,
                         error=str(e)
                     )
+
+    async def submit_task(self,
+                         task_name: str,
+                         args: tuple = (),
+                         kwargs: dict = {},
+                         priority: TaskPriority = TaskPriority.NORMAL) -> TaskResult:
+        """Submit a task to workers."""
+        # Create task
+        task = Task(
+            name=task_name,
+            args=args,
+            kwargs=kwargs,
+            priority=priority
+        )
+
+        return await self._submit_task_internal(task)
     
     async def delay(self, 
                    task_name: str,
@@ -153,65 +157,8 @@ class Client:
             priority=priority,
             callback=CallbackInfo(address=callback_address, data=callback_data)
         )
-        
-        # Check if we have available workers
-        if not self.workers:
-            # Try to discover workers
-            await asyncio.sleep(0.1)
-            if not self.workers:
-                return TaskResult(
-                    task_id=task.id,
-                    status=TaskStatus.FAILURE,
-                    error="No workers available"
-                )
-        
-        # Use the first available worker
-        worker_id, worker_address = next(iter(self.workers))
-        priority_address = f"{worker_address}_{priority.value}"
-        
-        # Try to submit task with retries
-        for attempt in range(self.retries + 1):
-            try:
-                # Create surveyor for this priority
-                surveyor = SurveyorRespondentPattern(priority_address, is_surveyor=True)
-                await surveyor.start()
-                
-                try:
-                    # Serialize and send task
-                    task_data = TaskSerializer.serialize(task.dict(), self.serialization_format)
-                    await surveyor.send(task_data)
-                    
-                    # Receive result with timeout
-                    result_data = await asyncio.wait_for(surveyor.recv(), timeout=self.timeout)
-                    result_dict = TaskSerializer.deserialize(result_data, self.serialization_format)
-                    result = TaskResult(**result_dict)
-                    
-                    return result
-                finally:
-                    surveyor.close()
-                    
-            except asyncio.TimeoutError:
-                if attempt < self.retries:
-                    logger.warning(f"Task submission timed out, retrying... (attempt {attempt + 1}/{self.retries})")
-                    await asyncio.sleep(0.1 * (2 ** attempt))  # Exponential backoff
-                else:
-                    logger.error(f"Task submission failed after {self.retries} retries")
-                    return TaskResult(
-                        task_id=task.id,
-                        status=TaskStatus.FAILURE,
-                        error=f"Task submission timed out after {self.retries} retries"
-                    )
-            except Exception as e:
-                logger.error(f"Error submitting task: {e}")
-                if attempt < self.retries:
-                    logger.warning(f"Retrying... (attempt {attempt + 1}/{self.retries})")
-                    await asyncio.sleep(0.1 * (2 ** attempt))  # Exponential backoff
-                else:
-                    return TaskResult(
-                        task_id=task.id,
-                        status=TaskStatus.FAILURE,
-                        error=str(e)
-                    )
+
+        return await self._submit_task_internal(task)
     
     def stop(self):
         """Stop the client."""

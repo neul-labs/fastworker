@@ -1,159 +1,18 @@
 # FastQueue
 
-Add background workers to your Python applications in seconds, without the complexity.
+A brokerless task queue for Python applications with automatic worker discovery and priority handling.
 
 [![PyPI version](https://badge.fury.io/py/fastqueue.svg)](https://badge.fury.io/py/fastqueue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Why FastQueue?
+## Features
 
-Adding background processing to your application shouldn't be hard. FastQueue makes it incredibly simple to offload time-consuming tasks without dealing with complex brokers, queues, or configurations.
-
-### The Problem
-Traditional task queues require:
-- Setting up and maintaining a message broker (Redis, RabbitMQ, etc.)
-- Managing separate queue servers
-- Dealing with connection issues and reliability concerns
-- Complex configuration and deployment
-
-### The FastQueue Solution
-FastQueue eliminates all that complexity:
-- **No brokers to manage** - Workers communicate directly with each other
-- **Automatic discovery** - Workers find each other automatically
-- **Zero configuration** - Start workers and you're done
-- **Built-in reliability** - Tasks are retried automatically if they fail
-
-## Quick Start
-
-### 1. Install FastQueue
-
-```bash
-pip install fastqueue
-```
-
-### 2. Define Your Tasks
-
-Create `tasks.py`:
-
-```python
-from fastqueue import task
-
-@task
-def send_email(recipient: str, subject: str, body: str):
-    """Send an email - this might take a few seconds."""
-    # Your email sending logic here
-    print(f"Email sent to {recipient}")
-
-@task
-def process_image(image_path: str):
-    """Process an image - this might take a while."""
-    # Your image processing logic here
-    print(f"Processed image: {image_path}")
-
-@task
-def generate_report(data: dict):
-    """Generate a report - this might be CPU intensive."""
-    # Your report generation logic here
-    print("Report generated")
-```
-
-### 3. Start Your Workers
-
-In one terminal, start as many workers as you need:
-
-```bash
-# Start your first worker
-fastqueue worker --worker-id worker1 --task-modules tasks
-
-# In another terminal, start a second worker for more power
-fastqueue worker --worker-id worker2 --task-modules tasks
-```
-
-That's it! Your workers automatically discover each other and start sharing the workload.
-
-### 4. Use Tasks in Your Application
-
-```python
-# In your main application
-from fastqueue import Client
-
-# Create a client to submit tasks
-client = Client()
-
-# Submit tasks to be processed in the background
-await client.delay("send_email", "user@example.com", "Hello", "Welcome!")
-await client.delay("process_image", "/path/to/image.jpg")
-await client.delay("generate_report", {"sales": 1000})
-```
-
-Or use the CLI:
-
-```bash
-# Submit tasks from the command line
-fastqueue submit --task-name send_email --args user@example.com "Hello" "Welcome!"
-fastqueue submit --task-name process_image --args /path/to/image.jpg
-```
-
-## Key Benefits
-
-### 🚀 Effortless Scaling
-Need more processing power? Just start another worker. No configuration needed.
-
-### 🔧 Zero Maintenance
-No brokers to monitor, no queues to manage. Just your workers doing what they do best.
-
-### 🔄 Automatic Load Balancing
-Tasks are automatically distributed across all available workers.
-
-### ⚡ Priority Handling
-Mark important tasks as "critical" to ensure they get processed first.
-
-### 🛡️ Built-in Reliability
-If a worker fails, tasks are automatically retried on other workers.
-
-## FastAPI Integration
-
-FastQueue works seamlessly with FastAPI:
-
-```python
-from fastapi import FastAPI
-from fastqueue import task, Client
-
-app = FastAPI()
-client = Client()
-
-@task
-def process_user_data(user_id: int):
-    # Process user data in the background
-    pass
-
-@app.on_event("startup")
-async def startup_event():
-    await client.start()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    client.stop()
-
-@app.post("/users/{user_id}/process")
-async def process_user(user_id: int):
-    # This returns immediately while processing happens in the background
-    await client.delay("process_user_data", user_id)
-    return {"message": "Processing started"}
-```
-
-## How It Works
-
-FastQueue uses advanced networking patterns that allow workers to communicate directly with each other, eliminating the need for a central broker. This makes your system more reliable and easier to manage.
-
-When you start workers, they automatically discover each other on the network and begin sharing work. If a worker goes down, others continue processing tasks without interruption.
-
-## Documentation
-
-- [API Reference](docs/api.md)
-- [Worker Guide](docs/workers.md)
-- [Client Guide](docs/clients.md)
-- [FastAPI Integration](docs/fastapi.md)
+- **Brokerless Architecture** - No Redis, RabbitMQ, or other message brokers required
+- **Automatic Worker Discovery** - Workers find each other automatically on the network
+- **Priority Queues** - Support for critical, high, normal, and low priority tasks
+- **Built-in Reliability** - Automatic retries and error handling
+- **FastAPI Integration** - Seamless integration with web applications
+- **Zero Configuration** - Works out of the box with sensible defaults
 
 ## Installation
 
@@ -161,10 +20,160 @@ When you start workers, they automatically discover each other on the network an
 pip install fastqueue
 ```
 
+## Quick Start
+
+### 1. Define Tasks
+
+```python
+# tasks.py
+from fastqueue import task
+
+@task
+def send_email(recipient: str, subject: str, body: str):
+    # Your email sending logic
+    print(f"Email sent to {recipient}")
+    return "sent"
+
+@task
+def process_image(image_path: str):
+    # Your image processing logic
+    print(f"Processed {image_path}")
+    return "processed"
+```
+
+### 2. Start Workers
+
+```bash
+# Terminal 1
+fastqueue worker --worker-id worker1 --task-modules tasks
+
+# Terminal 2 (optional - for scaling)
+fastqueue worker --worker-id worker2 --task-modules tasks
+```
+
+### 3. Submit Tasks
+
+```python
+from fastqueue import Client
+import asyncio
+
+async def main():
+    client = Client()
+    await client.start()
+
+    # Submit tasks
+    result = await client.delay("send_email", "user@example.com", "Hello", "Welcome!")
+    print(f"Task result: {result.result}")
+
+    client.stop()
+
+asyncio.run(main())
+```
+
+## CLI Usage
+
+```bash
+# Submit tasks via CLI
+fastqueue submit --task-name send_email --args user@example.com "Hello" "Welcome!"
+
+# List available tasks
+fastqueue list --task-modules tasks
+```
+
+## FastAPI Integration
+
+```python
+from fastapi import FastAPI
+from fastqueue import Client, task
+
+app = FastAPI()
+client = Client()
+
+@task
+def background_process(data: dict):
+    # Your background processing
+    return {"processed": data}
+
+@app.on_event("startup")
+async def startup():
+    await client.start()
+
+@app.on_event("shutdown")
+async def shutdown():
+    client.stop()
+
+@app.post("/process")
+async def process_data(data: dict):
+    result = await client.delay("background_process", data)
+    return {"task_id": result.task_id, "status": result.status}
+```
+
+## Priority Handling
+
+```python
+from fastqueue.tasks.models import TaskPriority
+
+# Submit with priority
+await client.delay("critical_task", priority=TaskPriority.CRITICAL)
+await client.delay("normal_task", priority=TaskPriority.NORMAL)
+```
+
+## Configuration
+
+Workers and clients accept configuration parameters:
+
+```python
+# Custom worker configuration
+worker = Worker(
+    worker_id="custom-worker",
+    base_address="tcp://127.0.0.1:6000",
+    discovery_address="tcp://127.0.0.1:6001"
+)
+
+# Custom client configuration
+client = Client(
+    discovery_address="tcp://127.0.0.1:6001",
+    timeout=60,
+    retries=5
+)
+```
+
+## Architecture
+
+FastQueue uses NNG (Next Generation Networking) patterns for direct worker-to-worker communication:
+
+- **No Single Point of Failure** - No central broker to fail
+- **Service Discovery** - Workers announce themselves and discover peers
+- **Load Balancing** - Tasks distributed across available workers
+- **Fault Tolerance** - Failed tasks automatically retry on other workers
+
+## Development
+
+```bash
+# Clone repository
+git clone https://github.com/dipankar/fastqueue.git
+cd fastqueue
+
+# Install dependencies
+poetry install
+
+# Run tests
+poetry run pytest
+
+# Format code
+poetry run black .
+```
+
+## Requirements
+
+- Python 3.12+
+- pynng
+- pydantic
+
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
