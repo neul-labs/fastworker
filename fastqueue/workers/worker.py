@@ -5,13 +5,15 @@ import signal
 from typing import Dict, List, Optional, Callable
 from datetime import datetime
 from fastqueue.patterns.nng_patterns import (
-    SurveyorRespondentPattern, 
+    SurveyorRespondentPattern,
     BusPattern,
     PairPattern
 )
 from fastqueue.tasks.registry import task_registry
 from fastqueue.tasks.models import Task, TaskResult, TaskStatus, TaskPriority, CallbackInfo
 from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+from fastqueue.telemetry.tracer import trace_operation
+from fastqueue.telemetry.metrics import record_task_metric, record_worker_metric
 import re
 from urllib.parse import urlparse
 
@@ -166,55 +168,88 @@ class Worker:
         """Execute a task."""
         task.status = TaskStatus.STARTED
         task.started_at = datetime.now()
-        
-        try:
-            # Get the task function
-            func = task_registry.get_task(task.name)
-            if not func:
-                raise ValueError(f"Task {task.name} not found")
-            
-            # Execute the task
-            if asyncio.iscoroutinefunction(func):
-                result = await func(*task.args, **task.kwargs)
-            else:
-                result = func(*task.args, **task.kwargs)
-            
-            # Create success result
-            task_result = TaskResult(
-                task_id=task.id,
-                status=TaskStatus.SUCCESS,
-                result=result,
-                started_at=task.started_at,
-                completed_at=datetime.now(),
-                callback=task.callback
-            )
-            
-            logger.info(f"Task {task.id} completed successfully")
-            
-            # Send callback if specified
-            if task.callback:
-                await self._send_callback(task_result)
-            
-            return task_result
-            
-        except Exception as e:
-            # Create failure result
-            task_result = TaskResult(
-                task_id=task.id,
-                status=TaskStatus.FAILURE,
-                error=str(e),
-                started_at=task.started_at,
-                completed_at=datetime.now(),
-                callback=task.callback
-            )
-            
-            logger.error(f"Task {task.id} failed: {e}")
-            
-            # Send callback if specified
-            if task.callback:
-                await self._send_callback(task_result)
-            
-            return task_result
+
+        with trace_operation(
+            f"worker.execute_task",
+            attributes={
+                "task.id": task.id,
+                "task.name": task.name,
+                "task.priority": task.priority.value,
+                "worker.id": self.worker_id
+            }
+        ):
+            try:
+                # Get the task function
+                func = task_registry.get_task(task.name)
+                if not func:
+                    raise ValueError(f"Task {task.name} not found")
+
+                # Execute the task
+                if asyncio.iscoroutinefunction(func):
+                    result = await func(*task.args, **task.kwargs)
+                else:
+                    result = func(*task.args, **task.kwargs)
+
+                # Calculate duration
+                completed_at = datetime.now()
+                duration_ms = (completed_at - task.started_at).total_seconds() * 1000
+
+                # Create success result
+                task_result = TaskResult(
+                    task_id=task.id,
+                    status=TaskStatus.SUCCESS,
+                    result=result,
+                    started_at=task.started_at,
+                    completed_at=completed_at,
+                    callback=task.callback
+                )
+
+                logger.info(f"Task {task.id} completed successfully in {duration_ms:.2f}ms")
+
+                # Record telemetry
+                record_task_metric(
+                    "completed",
+                    task.name,
+                    priority=task.priority.value,
+                    worker_id=self.worker_id,
+                    duration_ms=duration_ms
+                )
+
+                # Send callback if specified
+                if task.callback:
+                    await self._send_callback(task_result)
+
+                return task_result
+
+            except Exception as e:
+                # Calculate duration
+                completed_at = datetime.now()
+
+                # Create failure result
+                task_result = TaskResult(
+                    task_id=task.id,
+                    status=TaskStatus.FAILURE,
+                    error=str(e),
+                    started_at=task.started_at,
+                    completed_at=completed_at,
+                    callback=task.callback
+                )
+
+                logger.error(f"Task {task.id} failed: {e}")
+
+                # Record telemetry
+                record_task_metric(
+                    "failed",
+                    task.name,
+                    priority=task.priority.value,
+                    worker_id=self.worker_id
+                )
+
+                # Send callback if specified
+                if task.callback:
+                    await self._send_callback(task_result)
+
+                return task_result
     
     async def _send_callback(self, task_result: TaskResult):
         """Send callback notification when task is completed."""

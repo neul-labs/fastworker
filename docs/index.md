@@ -74,6 +74,7 @@ The system uses a **Control Plane Architecture** where:
 
 ### Resources
 - [**Limitations & Scope**](limitations.md) - What FastQueue is (and isn't), use cases, and when to use alternatives
+- [**OpenTelemetry Integration**](telemetry.md) - Distributed tracing and metrics with OpenTelemetry
 - [**Troubleshooting**](troubleshooting.md) - Common issues and solutions
 
 ## Architecture

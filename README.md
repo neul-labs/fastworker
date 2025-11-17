@@ -34,6 +34,7 @@ Traditional task queues (Celery + Redis) require deploying and managing **4-6+ s
 - **Task Completion Callbacks** - Receive real-time notifications when tasks complete
 - **Built-in Reliability** - Automatic retries and error handling
 - **FastAPI Integration** - Seamless integration with web applications
+- **OpenTelemetry Support** - Optional distributed tracing and metrics for observability
 - **Zero Configuration** - Works out of the box with sensible defaults
 
 **Note:** FastQueue is designed for moderate-scale Python applications (1K-10K tasks/min). For extreme scale, multi-language support, or complex workflows, see [Limitations & Scope](docs/limitations.md).
@@ -247,6 +248,7 @@ For detailed documentation, see:
 - [Limitations & Scope](docs/limitations.md) - **Start here** - What FastQueue is and when to use it
 - [API Reference](docs/api.md) - Full API documentation
 - [FastAPI Integration](docs/fastapi.md) - Web framework integration
+- [OpenTelemetry Integration](docs/telemetry.md) - Distributed tracing and metrics
 - [Configuration Guide](docs/configuration.md) - Environment variables and settings
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 

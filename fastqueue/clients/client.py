@@ -6,6 +6,8 @@ from typing import Any, Optional, Dict
 from fastqueue.patterns.nng_patterns import SurveyorRespondentPattern, BusPattern, ReqRepPattern
 from fastqueue.tasks.models import Task, TaskPriority, TaskResult, TaskStatus, CallbackInfo
 from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+from fastqueue.telemetry.tracer import trace_operation
+from fastqueue.telemetry.metrics import record_task_metric
 import re
 from urllib.parse import urlparse
 from collections import deque
@@ -232,30 +234,40 @@ class Client:
 
         return await self._submit_task_internal(task)
     
-    async def delay(self, 
+    async def delay(self,
               task_name: str,
               *args,
               priority: TaskPriority = TaskPriority.NORMAL,
               **kwargs) -> str:
         """Submit a task and return immediately with task ID (non-blocking)."""
-        # Create task
-        task = Task(
-            name=task_name,
-            args=args,
-            kwargs=kwargs,
-            priority=priority
-        )
-        
-        # Initialize pending result
-        result = TaskResult(
-            task_id=task.id,
-            status=TaskStatus.PENDING,
-            result=None,
-            error=None,
-            started_at=None,
-            completed_at=None
-        )
-        self.task_results[task.id] = result
+        with trace_operation(
+            "client.submit_task",
+            attributes={
+                "task.name": task_name,
+                "task.priority": priority.value if hasattr(priority, 'value') else str(priority)
+            }
+        ):
+            # Create task
+            task = Task(
+                name=task_name,
+                args=args,
+                kwargs=kwargs,
+                priority=priority
+            )
+
+            # Record metric
+            record_task_metric("submitted", task_name, priority=task.priority.value)
+
+            # Initialize pending result
+            result = TaskResult(
+                task_id=task.id,
+                status=TaskStatus.PENDING,
+                result=None,
+                error=None,
+                started_at=None,
+                completed_at=None
+            )
+            self.task_results[task.id] = result
         
         # Submit task in background (non-blocking) - use create_task to ensure it runs
         asyncio.create_task(self._submit_task_internal_with_error_handling(task))
