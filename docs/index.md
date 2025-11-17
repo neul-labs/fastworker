@@ -62,6 +62,7 @@ The system uses a **Control Plane Architecture** where:
 
 ### Core Components
 - [**API Reference**](api.md) - Complete API documentation
+- [**Async Patterns**](async-patterns.md) - Blocking vs non-blocking task submission
 - [**Control Plane**](control_plane.md) - Control plane architecture and configuration
 - [**Workers**](workers.md) - Worker configuration and management
 - [**Clients**](clients.md) - Client usage and configuration

@@ -101,6 +101,7 @@ fastqueue status --task-id <uuid>
 
 ### 5. Using Python Client
 
+**Non-blocking (recommended):**
 ```python
 from fastqueue import Client
 import asyncio
@@ -109,7 +110,7 @@ async def main():
     client = Client()
     await client.start()
 
-    # Non-blocking submission (returns task ID immediately)
+    # Non-blocking: Returns immediately with task ID
     task_id = await client.delay("add", 5, 3)
     print(f"Task submitted: {task_id}")
 
@@ -121,6 +122,13 @@ async def main():
     client.stop()
 
 asyncio.run(main())
+```
+
+**Blocking (when you need the result immediately):**
+```python
+# Blocking: Waits for result
+result = await client.submit_task("add", args=(5, 3))
+print(f"Result: {result.result}")
 ```
 
 ## Architecture
