@@ -12,6 +12,7 @@ A brokerless task queue for Python applications with automatic worker discovery 
 - **Automatic Worker Discovery** - Workers find each other automatically on the network
 - **Priority Queues** - Support for critical, high, normal, and low priority tasks
 - **Result Caching** - Task results cached with expiration and memory limits
+- **Task Completion Callbacks** - Receive real-time notifications when tasks complete
 - **Built-in Reliability** - Automatic retries and error handling
 - **FastAPI Integration** - Seamless integration with web applications
 - **Zero Configuration** - Works out of the box with sensible defaults

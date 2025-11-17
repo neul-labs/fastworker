@@ -55,11 +55,17 @@ async def register_user(user_id: int, email: str):
 
 ### 3. Start Workers
 
-In separate terminals, start workers to process tasks:
+In separate terminals, start the control plane and subworkers to process tasks:
 
 ```bash
-fastqueue worker --worker-id worker1 --task-modules tasks
-fastqueue worker --worker-id worker2 --task-modules tasks
+# Terminal 1: Start control plane
+fastqueue control-plane --worker-id control-plane --task-modules tasks
+
+# Terminal 2: Start subworker 1 (optional, for scaling)
+fastqueue subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules tasks
+
+# Terminal 3: Start subworker 2 (optional, for scaling)
+fastqueue subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules tasks
 ```
 
 ## Advanced Integration Patterns
@@ -220,13 +226,19 @@ async def io_intensive_task(data: dict) -> dict:
 Start specialized workers:
 
 ```bash
-# CPU intensive workers
-fastqueue worker --worker-id cpu-worker-1 --task-modules cpu_intensive_tasks
-fastqueue worker --worker-id cpu-worker-2 --task-modules cpu_intensive_tasks
+# Start control plane for CPU intensive tasks
+fastqueue control-plane --worker-id cpu-control-plane --base-address tcp://127.0.0.1:5555 --task-modules cpu_intensive_tasks
 
-# I/O intensive workers
-fastqueue worker --worker-id io-worker-1 --task-modules io_intensive_tasks
-fastqueue worker --worker-id io-worker-2 --task-modules io_intensive_tasks
+# CPU intensive subworkers
+fastqueue subworker --worker-id cpu-worker-1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules cpu_intensive_tasks
+fastqueue subworker --worker-id cpu-worker-2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules cpu_intensive_tasks
+
+# Start control plane for I/O intensive tasks (different port range)
+fastqueue control-plane --worker-id io-control-plane --base-address tcp://127.0.0.1:5575 --task-modules io_intensive_tasks
+
+# I/O intensive subworkers
+fastqueue subworker --worker-id io-worker-1 --control-plane-address tcp://127.0.0.1:5575 --base-address tcp://127.0.0.1:5581 --task-modules io_intensive_tasks
+fastqueue subworker --worker-id io-worker-2 --control-plane-address tcp://127.0.0.1:5575 --base-address tcp://127.0.0.1:5585 --task-modules io_intensive_tasks
 ```
 
 ### Monitoring and Metrics

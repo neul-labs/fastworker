@@ -51,7 +51,8 @@ FastQueue eliminates the complexity of traditional task queues by removing the n
 - [**Clients**](clients.md) - Client usage and configuration
 
 ### Integration Guides
-- [**FastAPI Integration**](fastapi.md) - Web application integration
+- [**FastAPI Integration**](fastapi.md) - Comprehensive FastAPI integration guide
+- [**Framework Integration**](frameworks.md) - Flask, Django, Sanic, and other frameworks
 - [**NNG Patterns**](nng_patterns.md) - Network communication details
 
 ## Architecture

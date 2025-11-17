@@ -80,8 +80,9 @@ Client(
 - `stop()` - Stop the client
 - `submit_task(task_name: str, args: tuple = (), kwargs: dict = {}, priority: TaskPriority = TaskPriority.NORMAL)` - Submit a task and wait for result
 - `delay(task_name: str, *args, priority: TaskPriority = TaskPriority.NORMAL, **kwargs)` - Submit a task and return task ID immediately (non-blocking)
+- `delay_with_callback(task_name: str, callback_address: str, *args, callback_data: dict = None, priority: TaskPriority = TaskPriority.NORMAL, **kwargs)` - Submit a task with callback notification when complete
 - `get_result(task_id: str)` - Get task result from local cache
-- `get_task_result(task_id: str)` - Query task result from control plane
+- `get_task_result(task_id: str)` - Query task result from control plane's result cache
 - `get_status(task_id: str)` - Get task status by task ID
 
 ## Task Priority
@@ -130,6 +131,14 @@ Properties:
 - `error: Optional[str]` - Error message if failed
 - `started_at: Optional[datetime]` - Start timestamp
 - `completed_at: Optional[datetime]` - Completion timestamp
+
+### `CallbackInfo`
+
+Represents callback information for task completion notifications.
+
+Properties:
+- `address: str` - NNG address to send callback notification to
+- `data: Optional[dict]` - Additional data to send with callback
 
 ## Enums
 
