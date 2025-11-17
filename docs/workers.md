@@ -1,85 +1,115 @@
 # Worker Guide
 
-## Starting Workers
+## Architecture Overview
 
-Workers are started using the CLI command:
+FastQueue uses a **Control Plane Architecture**:
 
-```bash
-fastqueue worker --worker-id <worker_id> --task-modules <module1> [<module2> ...]
-```
+- **Control Plane Worker**: Central coordinator that manages subworkers and processes tasks
+- **Subworkers**: Additional workers that register with the control plane for load distribution
 
-### Parameters
+## Starting the Control Plane
 
-- `--worker-id` (required): Unique identifier for the worker
-- `--base-address` (optional): Base address for the worker (default: `tcp://127.0.0.1:5555`)
+The control plane is the central coordinator and should be started first:
+
+fastqueue control-plane --worker-id control-plane --task-modules mytasks### Control Plane Parameters
+
+- `--worker-id` (optional): Control plane identifier (default: "control-plane")
+- `--base-address` (optional): Base address (default: `tcp://127.0.0.1:5555`)
 - `--discovery-address` (optional): Discovery address (default: `tcp://127.0.0.1:5550`)
+- `--subworker-port` (optional): Subworker management port (default: 5560)
+- `--result-cache-size` (optional): Maximum cached results (default: 10000)
+- `--result-cache-ttl` (optional): Cache TTL in seconds (default: 3600)
 - `--task-modules` (optional): Task modules to load
 
 ### Example
 
-```bash
-# Start a worker with default settings
-fastqueue worker --worker-id worker1 --task-modules myapp.tasks
+# Start control plane with custom cache settings
+fastqueue control-plane \
+  --worker-id control-plane \
+  --result-cache-size 20000 \
+  --result-cache-ttl 7200 \
+  --task-modules mytasks## Starting Subworkers
 
-# Start a worker with custom addresses
-fastqueue worker --worker-id worker2 --base-address tcp://192.168.1.100:5555 --discovery-address tcp://192.168.1.100:5550 --task-modules myapp.tasks
-```
+Subworkers register with the control plane and receive distributed tasks:
 
-## Worker Internals
+fastqueue subworker \
+  --worker-id subworker1 \
+  --control-plane-address tcp://127.0.0.1:5555 \
+  --base-address tcp://127.0.0.1:5561 \
+  --task-modules mytasks### Subworker Parameters
 
-Workers use several nng patterns for operation:
+- `--worker-id` (required): Unique subworker identifier
+- `--control-plane-address` (required): Address of the control plane
+- `--base-address` (optional): Base address for this subworker (default: `tcp://127.0.0.1:5555`)
+- `--discovery-address` (optional): Discovery address (default: `tcp://127.0.0.1:5550`)
+- `--task-modules` (optional): Task modules to load
 
-1. **Surveyor/Respondent Pattern**: For receiving tasks and sending results
-2. **Bus Pattern**: For automatic service discovery
-3. **Automatic Load Balancing**: Tasks are distributed among available workers
+### Port Allocation
 
-## Worker Discovery
+Each subworker needs its own port range. Use non-overlapping ports:
 
-Workers automatically discover each other through the built-in service discovery mechanism:
+# Subworker 1: ports 5561-5564
+fastqueue subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
 
-1. Workers announce themselves on the network when starting
-2. Other workers and clients automatically discover them
-3. No manual configuration is required
+# Subworker 2: ports 5565-5568
+fastqueue subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
 
-## Task Processing
+# Subworker 3: ports 5569-5572
+fastqueue subworker --worker-id sw3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules mytasks## Task Processing
 
-Workers process tasks in priority order:
+### Priority Order
+
+Tasks are processed in priority order:
 
 1. **CRITICAL** tasks are processed first
 2. **HIGH** tasks are processed second
 3. **NORMAL** tasks are processed third
 4. **LOW** tasks are processed last
 
+### Load Balancing
+
+The control plane automatically:
+- Distributes tasks to least-loaded subworkers
+- Processes tasks locally if no subworkers available
+- Monitors subworker health and load
+
+## Result Caching
+
+The control plane maintains a result cache:
+
+- **Size Limit**: Configurable maximum number of results (default: 10,000)
+- **TTL**: Results expire after configured time (default: 1 hour)
+- **LRU Eviction**: Least recently accessed results evicted when cache is full
+- **Automatic Cleanup**: Expired results cleaned up every minute
+
 ## Graceful Shutdown
 
 Workers handle shutdown signals gracefully:
 
-1. Press `Ctrl+C` to stop a worker
-2. The worker will finish processing the current task
-3. The worker will unregister itself from service discovery
-4. The worker will close all connections
+1. Press `Ctrl+C` to stop
+2. Current tasks complete processing
+3. Workers unregister from service discovery
+4. All connections close cleanly
 
-## Multiple Workers
+## Scaling
 
-You can run multiple workers for scalability:
+### Adding Subworkers
 
-```bash
-# Terminal 1
-fastqueue worker --worker-id worker1 --task-modules myapp.tasks
+Simply start additional subworkers - no configuration changes needed:
 
-# Terminal 2
-fastqueue worker --worker-id worker2 --task-modules myapp.tasks
+# Terminal 1: Control plane
+fastqueue control-plane --task-modules mytasks
 
-# Terminal 3
-fastqueue worker --worker-id worker3 --task-modules myapp.tasks
-```
+# Terminal 2: Subworker 1
+fastqueue subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
 
-Tasks will be automatically load-balanced among the available workers.
+# Terminal 3: Subworker 2
+fastqueue subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasksTasks automatically distribute across all available subworkers.
 
-## Worker Health
+## Health Monitoring
 
-Workers continuously monitor their health and network connections:
+The control plane monitors subworker health:
 
-1. Automatic reconnection to the discovery network
-2. Error handling for task processing
-3. Logging of important events
+- Tracks last seen timestamp
+- Marks subworkers inactive after 30 seconds of no activity
+- Automatically excludes inactive subworkers from task distribution

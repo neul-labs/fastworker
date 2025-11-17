@@ -4,49 +4,49 @@ A brokerless task queue for Python applications with automatic worker discovery 
 
 ## Overview
 
-FastQueue eliminates the complexity of traditional task queues by removing the need for message brokers like Redis or RabbitMQ. Workers communicate directly using NNG (Next Generation Networking) patterns, providing:
+FastQueue eliminates the complexity of traditional task queues by removing the need for message brokers like Redis or RabbitMQ. The system uses a **Control Plane Architecture** where:
+
+- **Control Plane Worker**: Central coordinator that manages subworkers and processes tasks
+- **Subworkers**: Additional workers that register with the control plane for load distribution
+- **Clients**: Connect to the control plane for task submission
+
+### Key Features
 
 - **Fault Tolerance** - No single point of failure
 - **Auto-Discovery** - Workers find each other automatically
 - **Priority Queues** - Critical, high, normal, and low priority tasks
-- **Load Balancing** - Tasks distributed across available workers
+- **Load Balancing** - Tasks distributed to least-loaded subworkers
+- **Result Caching** - Results cached with expiration and memory limits
 
 ## Quick Start
 
 1. **Install FastQueue**
-   ```bash
    pip install fastqueue
-   ```
-
-2. **Define Tasks**
-   ```python
-   # tasks.py
+   
+2. **Define Tasks**hon
+   # mytasks.py
    from fastqueue import task
 
    @task
    def process_data(data: dict):
        return {"processed": data}
-   ```
-
-3. **Start Workers**
-   ```bash
-   fastqueue worker --worker-id worker1 --task-modules tasks
-   ```
-
-4. **Submit Tasks**
-   ```python
+   3. **Start Control Plane**
+   fastqueue control-plane --task-modules mytasks
+   4. **Start Subworkers (Optional)**
+   fastqueue subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
+   5. **Submit Tasks**thon
    from fastqueue import Client
 
    client = Client()
    await client.start()
-   result = await client.delay("process_data", {"key": "value"})
+   task_id = await client.delay("process_data", {"key": "value"})
+   result = await client.get_task_result(task_id)
    client.stop()
-   ```
-
-## Documentation Sections
+   ## Documentation Sections
 
 ### Core Components
 - [**API Reference**](api.md) - Complete API documentation
+- [**Control Plane**](control_plane.md) - Control plane architecture and configuration
 - [**Workers**](workers.md) - Worker configuration and management
 - [**Clients**](clients.md) - Client usage and configuration
 
@@ -56,20 +56,26 @@ FastQueue eliminates the complexity of traditional task queues by removing the n
 
 ## Architecture
 
-FastQueue uses a distributed architecture where:
+FastQueue uses a **Control Plane Architecture**:
 
-1. **Workers** register themselves and listen for tasks
-2. **Clients** discover workers and submit tasks
-3. **Tasks** are distributed based on priority and worker availability
-4. **Results** are returned directly to the client
+1. **Control Plane Worker** coordinates all task distribution
+2. **Subworkers** register with control plane and receive tasks
+3. **Clients** connect only to the control plane
+4. **Results** are cached in the control plane with expiration
 
-No central coordinator or message broker is required.
+### Benefits
+
+- **Centralized Management**: Single point of coordination
+- **Load Balancing**: Automatic distribution to least-loaded workers
+- **High Availability**: Control plane processes tasks if subworkers fail
+- **Result Persistence**: Results cached and queryable
+- **Scalability**: Add subworkers dynamically
 
 ## Key Features
 
 - **Zero Configuration** - Works out of the box
 - **High Performance** - Direct peer-to-peer communication
-- **Scalable** - Add workers dynamically
+- **Scalable** - Add subworkers dynamically
 - **Reliable** - Built-in retries and error handling
 - **Python Native** - Type hints and async/await support
 

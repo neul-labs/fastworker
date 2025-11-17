@@ -3,6 +3,8 @@ import pynng
 import asyncio
 from typing import Optional, List, Callable
 from enum import Enum
+import re
+from urllib.parse import urlparse
 
 class PatternType(Enum):
     """NNG pattern types."""
@@ -86,9 +88,11 @@ class SurveyorRespondentPattern:
     async def start(self):
         """Start the socket."""
         if self.is_surveyor:
-            self.socket = pynng.Surveyor0(listen=self.address)
+            # Surveyor dials to connect to listening respondents
+            self.socket = pynng.Surveyor0(dial=self.address)
         else:
-            self.socket = pynng.Respondent0(dial=self.address)
+            # Respondent listens for surveys
+            self.socket = pynng.Respondent0(listen=self.address)
     
     async def send(self, data: bytes):
         """Send data."""

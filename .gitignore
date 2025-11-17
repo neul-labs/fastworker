@@ -143,3 +143,6 @@ Thumbs.db
 
 # Poetry
 .poetry
+
+fastqueue-env
+mytasks.py

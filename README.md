@@ -8,8 +8,10 @@ A brokerless task queue for Python applications with automatic worker discovery 
 ## Features
 
 - **Brokerless Architecture** - No Redis, RabbitMQ, or other message brokers required
+- **Control Plane Architecture** - Centralized coordination with distributed subworkers
 - **Automatic Worker Discovery** - Workers find each other automatically on the network
 - **Priority Queues** - Support for critical, high, normal, and low priority tasks
+- **Result Caching** - Task results cached with expiration and memory limits
 - **Built-in Reliability** - Automatic retries and error handling
 - **FastAPI Integration** - Seamless integration with web applications
 - **Zero Configuration** - Works out of the box with sensible defaults
@@ -25,33 +27,56 @@ pip install fastqueue
 ### 1. Define Tasks
 
 ```python
-# tasks.py
+# mytasks.py
 from fastqueue import task
 
 @task
-def send_email(recipient: str, subject: str, body: str):
-    # Your email sending logic
-    print(f"Email sent to {recipient}")
-    return "sent"
+def add(x: int, y: int) -> int:
+    """Add two numbers."""
+    return x + y
 
 @task
-def process_image(image_path: str):
-    # Your image processing logic
-    print(f"Processed {image_path}")
-    return "processed"
+def multiply(x: int, y: int) -> int:
+    """Multiply two numbers."""
+    return x * y
 ```
 
-### 2. Start Workers
+### 2. Start Control Plane
 
 ```bash
-# Terminal 1
-fastqueue worker --worker-id worker1 --task-modules tasks
-
-# Terminal 2 (optional - for scaling)
-fastqueue worker --worker-id worker2 --task-modules tasks
+# Terminal 1 - Start the control plane (coordinates and also processes tasks)
+fastqueue control-plane --worker-id control-plane --task-modules mytasks
 ```
 
-### 3. Submit Tasks
+### 3. Start Subworkers (Optional - for scaling)
+
+```bash
+# Terminal 2 - Start subworker 1
+fastqueue subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
+
+# Terminal 3 - Start subworker 2 (optional)
+fastqueue subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
+```
+
+### 4. Submit Tasks
+
+**Blocking mode (wait for result):**
+```bash
+fastqueue submit --task-name add --args 5 3
+```
+
+**Non-blocking mode (get task ID immediately):**
+```bash
+fastqueue submit --task-name add --args 5 3 --non-blocking
+# Returns: Task ID: <uuid>
+```
+
+**Check task status:**
+```bash
+fastqueue status --task-id <uuid>
+```
+
+### 5. Using Python Client
 
 ```python
 from fastqueue import Client
@@ -61,51 +86,56 @@ async def main():
     client = Client()
     await client.start()
 
-    # Submit tasks
-    result = await client.delay("send_email", "user@example.com", "Hello", "Welcome!")
-    print(f"Task result: {result.result}")
+    # Non-blocking submission (returns task ID immediately)
+    task_id = await client.delay("add", 5, 3)
+    print(f"Task submitted: {task_id}")
+
+    # Check result later
+    result = await client.get_task_result(task_id)
+    if result:
+        print(f"Result: {result.result}")
 
     client.stop()
 
 asyncio.run(main())
 ```
 
+## Architecture
+
+FastQueue uses a **Control Plane Architecture**:
+
+- **Control Plane Worker**: Central coordinator that manages subworkers and also processes tasks
+- **Subworkers**: Additional workers that register with the control plane for load distribution
+- **Clients**: Connect only to the control plane for task submission
+
+### Benefits
+
+- **Centralized Management**: Control plane coordinates all task distribution
+- **Load Balancing**: Tasks automatically distributed to least-loaded subworkers
+- **High Availability**: Control plane processes tasks if no subworkers available
+- **Result Persistence**: Results cached in control plane with expiration
+- **Scalability**: Add subworkers dynamically without reconfiguration
+
 ## CLI Usage
 
 ```bash
-# Submit tasks via CLI
-fastqueue submit --task-name send_email --args user@example.com "Hello" "Welcome!"
+# Start control plane
+fastqueue control-plane --worker-id control-plane --task-modules mytasks
+
+# Start subworker
+fastqueue subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --task-modules mytasks
+
+# Submit task (blocking)
+fastqueue submit --task-name add --args 5 3
+
+# Submit task (non-blocking)
+fastqueue submit --task-name add --args 5 3 --non-blocking
+
+# Check task status
+fastqueue status --task-id <uuid>
 
 # List available tasks
-fastqueue list --task-modules tasks
-```
-
-## FastAPI Integration
-
-```python
-from fastapi import FastAPI
-from fastqueue import Client, task
-
-app = FastAPI()
-client = Client()
-
-@task
-def background_process(data: dict):
-    # Your background processing
-    return {"processed": data}
-
-@app.on_event("startup")
-async def startup():
-    await client.start()
-
-@app.on_event("shutdown")
-async def shutdown():
-    client.stop()
-
-@app.post("/process")
-async def process_data(data: dict):
-    result = await client.delay("background_process", data)
-    return {"task_id": result.task_id, "status": result.status}
+fastqueue list --task-modules mytasks
 ```
 
 ## Priority Handling
@@ -118,34 +148,47 @@ await client.delay("critical_task", priority=TaskPriority.CRITICAL)
 await client.delay("normal_task", priority=TaskPriority.NORMAL)
 ```
 
+## Result Caching
+
+The control plane maintains a result cache with:
+- **Configurable Size**: Default 10,000 results (configurable via `--result-cache-size`)
+- **TTL**: Default 1 hour (configurable via `--result-cache-ttl`)
+- **LRU Eviction**: Least recently accessed results evicted when cache is full
+- **Automatic Cleanup**: Expired results cleaned up every minute
+
 ## Configuration
 
-Workers and clients accept configuration parameters:
+### Control Plane
+
+```bash
+fastqueue control-plane \
+  --worker-id control-plane \
+  --base-address tcp://127.0.0.1:5555 \
+  --discovery-address tcp://127.0.0.1:5550 \
+  --result-cache-size 10000 \
+  --result-cache-ttl 3600 \
+  --task-modules mytasks
+```
+
+### Subworker
+
+```bash
+fastqueue subworker \
+  --worker-id subworker1 \
+  --control-plane-address tcp://127.0.0.1:5555 \
+  --base-address tcp://127.0.0.1:5561 \
+  --task-modules mytasks
+```
+
+### Client
 
 ```python
-# Custom worker configuration
-worker = Worker(
-    worker_id="custom-worker",
-    base_address="tcp://127.0.0.1:6000",
-    discovery_address="tcp://127.0.0.1:6001"
-)
-
-# Custom client configuration
 client = Client(
-    discovery_address="tcp://127.0.0.1:6001",
+    discovery_address="tcp://127.0.0.1:5550",
     timeout=60,
     retries=5
 )
 ```
-
-## Architecture
-
-FastQueue uses NNG (Next Generation Networking) patterns for direct worker-to-worker communication:
-
-- **No Single Point of Failure** - No central broker to fail
-- **Service Discovery** - Workers announce themselves and discover peers
-- **Load Balancing** - Tasks distributed across available workers
-- **Fault Tolerance** - Failed tasks automatically retry on other workers
 
 ## Development
 

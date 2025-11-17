@@ -2,7 +2,7 @@
 
 ## Creating a Client
 
-Clients are used to submit tasks to workers:
+Clients are used to submit tasks to the control plane:
 
 ```python
 from fastqueue import Client
@@ -38,17 +38,24 @@ asyncio.run(main())
 
 ## Submitting Tasks
 
-### Using `delay()` (Recommended)
+### Non-Blocking Submission (Recommended)
 
-Submit a task and return immediately:
+Submit a task and get task ID immediately:
 
 ```python
-result = await client.delay("task_name", arg1, arg2, keyword_arg=value, priority="high")
+# Returns task ID immediately
+task_id = await client.delay("task_name", arg1, arg2, priority="high")
+print(f"Task ID: {task_id}")
+
+# Check result later
+result = await client.get_task_result(task_id)
+if result:
+    print(f"Result: {result.result}")
 ```
 
-### Using `submit_task()`
+### Blocking Submission
 
-Submit a task with more control:
+Submit a task and wait for result:
 
 ```python
 result = await client.submit_task(
@@ -57,19 +64,36 @@ result = await client.submit_task(
     kwargs={"keyword_arg": value},
     priority=TaskPriority.HIGH
 )
+
+if result.status == TaskStatus.SUCCESS:
+    print(f"Result: {result.result}")
+else:
+    print(f"Error: {result.error}")
 ```
 
-## Handling Results
+## Querying Task Results
 
-The client returns a `TaskResult` object:
+### From Control Plane
+
+Query results from the control plane's result cache:
 
 ```python
-result = await client.delay("add", 2, 3)
+result = await client.get_task_result(task_id)
 
-if result.status == "success":
-    print(f"Task succeeded with result: {result.result}")
+if result:
+    print(f"Status: {result.status}")
+    print(f"Result: {result.result}")
 else:
-    print(f"Task failed with error: {result.error}")
+    print("Result not found or expired")
+```
+
+### From Local Cache
+
+Get result from client's local cache (only if client submitted the task):
+
+```python
+result = client.get_result(task_id)
+status = client.get_status(task_id)
 ```
 
 ## Task Priority
@@ -80,16 +104,16 @@ Tasks can be submitted with different priorities:
 from fastqueue.tasks.models import TaskPriority
 
 # Submit with different priorities
-result1 = await client.delay("my_task", priority=TaskPriority.CRITICAL)
-result2 = await client.delay("my_task", priority=TaskPriority.HIGH)
-result3 = await client.delay("my_task", priority=TaskPriority.NORMAL)
-result4 = await client.delay("my_task", priority=TaskPriority.LOW)
+task_id1 = await client.delay("my_task", priority=TaskPriority.CRITICAL)
+task_id2 = await client.delay("my_task", priority=TaskPriority.HIGH)
+task_id3 = await client.delay("my_task", priority=TaskPriority.NORMAL)
+task_id4 = await client.delay("my_task", priority=TaskPriority.LOW)
 ```
 
 Or using string values:
 
 ```python
-result = await client.delay("my_task", priority="high")
+task_id = await client.delay("my_task", priority="high")
 ```
 
 ## Error Handling
@@ -98,15 +122,15 @@ The client handles various error scenarios:
 
 ```python
 try:
-    result = await client.delay("my_task")
+    task_id = await client.delay("my_task")
+    result = await client.get_task_result(task_id)
     
-    if result.status == "failure":
-        if "No workers available" in result.error:
-            print("No workers are currently available")
-        else:
-            print(f"Task failed: {result.error}")
-    else:
+    if result and result.status == TaskStatus.FAILURE:
+        print(f"Task failed: {result.error}")
+    elif result:
         print(f"Task succeeded: {result.result}")
+    else:
+        print("Task result not available")
         
 except Exception as e:
     print(f"Client error: {e}")
@@ -114,7 +138,7 @@ except Exception as e:
 
 ## Retry Mechanism
 
-The client automatically retries failed tasks:
+The client automatically retries failed task submissions:
 
 1. Default: 3 retries with exponential backoff
 2. Configurable through the `retries` parameter
@@ -122,32 +146,33 @@ The client automatically retries failed tasks:
 
 ## Service Discovery
 
-Clients automatically discover available workers:
+Clients automatically discover the control plane:
 
-1. Clients listen for worker announcements
-2. Workers are automatically added to the available pool
-3. Offline workers are automatically removed
+1. Clients listen for control plane announcements
+2. Control plane is automatically added to available pool
+3. Automatic reconnection if control plane restarts
 
 ## Timeout Handling
 
-Tasks can timeout if workers don't respond:
+Tasks can timeout if the control plane doesn't respond:
 
 ```python
 # Set custom timeout (in seconds)
 client = Client(timeout=60)  # 60 second timeout
-
-# Or set timeout per task
-result = await client.delay("slow_task", timeout=120)  # 120 second timeout
 ```
 
-## Serialization
+## Result Caching
 
-The client supports different serialization formats:
+Task results are cached in the control plane:
+
+- **Default TTL**: 1 hour
+- **Default Size**: 10,000 results
+- **LRU Eviction**: Least recently accessed results evicted when cache is full
+
+Query results using:
 
 ```python
-from fastqueue.tasks.serializer import SerializationFormat
-
-client = Client(serialization_format=SerializationFormat.PICKLE)
+result = await client.get_task_result(task_id)
 ```
 
 ## FastAPI Integration
@@ -171,14 +196,23 @@ async def shutdown_event():
 
 @app.post("/process/")
 async def process_endpoint(data: dict):
-    result = await client.delay("process_data", data)
-    return {"result": result.result}
+    # Non-blocking submission
+    task_id = await client.delay("process_data", data)
+    return {"task_id": task_id}
+
+@app.get("/result/{task_id}")
+async def get_result(task_id: str):
+    result = await client.get_task_result(task_id)
+    if result:
+        return {"status": result.status.value, "result": result.result}
+    return {"error": "Result not found"}
 ```
 
 ## Best Practices
 
 1. **Reuse Client Instances**: Create one client instance per application
-2. **Handle Errors Gracefully**: Always check task results for failures
-3. **Use Appropriate Timeouts**: Set timeouts based on task complexity
-4. **Set Retry Limits**: Adjust retries based on task criticality
-5. **Monitor Worker Availability**: Check worker status in production
+2. **Use Non-Blocking Submission**: Use `delay()` for better performance
+3. **Query Results Asynchronously**: Check results when needed, not immediately
+4. **Handle Errors Gracefully**: Always check task results for failures
+5. **Set Appropriate Timeouts**: Adjust timeouts based on task complexity
+6. **Monitor Control Plane**: Ensure control plane is running and healthy

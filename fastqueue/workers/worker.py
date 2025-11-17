@@ -12,6 +12,8 @@ from fastqueue.patterns.nng_patterns import (
 from fastqueue.tasks.registry import task_registry
 from fastqueue.tasks.models import Task, TaskResult, TaskStatus, TaskPriority, CallbackInfo
 from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+import re
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +32,30 @@ class Worker:
         self.running = False
         self.shutdown_event = asyncio.Event()
         
-        # Create patterns for different priorities
+        # Parse base address to extract host and port
+        parsed = urlparse(base_address)
+        host = parsed.hostname or "127.0.0.1"
+        base_port = parsed.port or 5555
+        scheme = parsed.scheme or "tcp"
+        
+        # Create addresses for different priorities using different ports
+        # Use ports base_port, base_port+1, base_port+2, base_port+3
+        priority_ports = {
+            'critical': base_port,
+            'high': base_port + 1,
+            'normal': base_port + 2,
+            'low': base_port + 3
+        }
+        
+        # Create patterns for different priorities - workers LISTEN
         self.critical_respondent = SurveyorRespondentPattern(
-            f"{base_address}_critical", is_surveyor=False)
+            f"{scheme}://{host}:{priority_ports['critical']}", is_surveyor=False)
         self.high_respondent = SurveyorRespondentPattern(
-            f"{base_address}_high", is_surveyor=False)
+            f"{scheme}://{host}:{priority_ports['high']}", is_surveyor=False)
         self.normal_respondent = SurveyorRespondentPattern(
-            f"{base_address}_normal", is_surveyor=False)
+            f"{scheme}://{host}:{priority_ports['normal']}", is_surveyor=False)
         self.low_respondent = SurveyorRespondentPattern(
-            f"{base_address}_low", is_surveyor=False)
+            f"{scheme}://{host}:{priority_ports['low']}", is_surveyor=False)
         
         # Built-in service discovery bus
         self.discovery_bus = BusPattern(discovery_address, listen=True)
