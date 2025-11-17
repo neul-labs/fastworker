@@ -1,5 +1,11 @@
 # Worker Guide
 
+**See Also:**
+- [Control Plane](control_plane.md) - Control plane architecture details
+- [API Reference](api.md) - Worker API documentation
+- [Configuration](configuration.md) - Environment variable configuration
+- [Troubleshooting](troubleshooting.md) - Worker issues and solutions
+
 ## Architecture Overview
 
 FastQueue uses a **Control Plane Architecture**:

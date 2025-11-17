@@ -1,6 +1,7 @@
 """Control Plane Worker implementation for FastQueue."""
 import asyncio
 import logging
+import os
 import signal
 from typing import Dict, List, Optional, Callable, Set
 from datetime import datetime, timedelta
@@ -21,16 +22,48 @@ from fastqueue.workers.worker import Worker
 logger = logging.getLogger(__name__)
 
 class ControlPlaneWorker(Worker):
-    """Control plane worker that manages subworkers and also processes tasks."""
-    
-    def __init__(self, 
-                 worker_id: str = "control-plane",
-                 base_address: str = "tcp://127.0.0.1:5555",
-                 discovery_address: str = "tcp://127.0.0.1:5550",
-                 serialization_format: SerializationFormat = SerializationFormat.JSON,
-                 subworker_management_port: int = 5560,
-                 result_cache_max_size: int = 10000,
-                 result_cache_ttl_seconds: int = 3600):
+    """Control plane worker that manages subworkers and also processes tasks.
+
+    Configuration can be provided via environment variables:
+    - FASTQUEUE_WORKER_ID: Worker ID (default: control-plane)
+    - FASTQUEUE_BASE_ADDRESS: Base address for task processing (default: tcp://127.0.0.1:5555)
+    - FASTQUEUE_DISCOVERY_ADDRESS: Service discovery address (default: tcp://127.0.0.1:5550)
+    - FASTQUEUE_SERIALIZATION_FORMAT: Serialization format - JSON or PICKLE (default: JSON)
+    - FASTQUEUE_SUBWORKER_PORT: Subworker management port (default: 5560)
+    - FASTQUEUE_RESULT_CACHE_SIZE: Maximum cached results (default: 10000)
+    - FASTQUEUE_RESULT_CACHE_TTL: Cache TTL in seconds (default: 3600)
+    """
+
+    def __init__(self,
+                 worker_id: Optional[str] = None,
+                 base_address: Optional[str] = None,
+                 discovery_address: Optional[str] = None,
+                 serialization_format: Optional[SerializationFormat] = None,
+                 subworker_management_port: Optional[int] = None,
+                 result_cache_max_size: Optional[int] = None,
+                 result_cache_ttl_seconds: Optional[int] = None):
+        # Load from environment variables with fallback to defaults
+        worker_id = worker_id or os.getenv("FASTQUEUE_WORKER_ID", "control-plane")
+        base_address = base_address or os.getenv("FASTQUEUE_BASE_ADDRESS", "tcp://127.0.0.1:5555")
+        discovery_address = discovery_address or os.getenv("FASTQUEUE_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550")
+
+        # Parse serialization format from string if needed
+        if serialization_format is None:
+            format_str = os.getenv("FASTQUEUE_SERIALIZATION_FORMAT", "JSON").upper()
+            serialization_format = (
+                SerializationFormat.PICKLE if format_str == "PICKLE"
+                else SerializationFormat.JSON
+            )
+
+        subworker_management_port = subworker_management_port or int(
+            os.getenv("FASTQUEUE_SUBWORKER_PORT", "5560")
+        )
+        result_cache_max_size = result_cache_max_size or int(
+            os.getenv("FASTQUEUE_RESULT_CACHE_SIZE", "10000")
+        )
+        result_cache_ttl_seconds = result_cache_ttl_seconds or int(
+            os.getenv("FASTQUEUE_RESULT_CACHE_TTL", "3600")
+        )
         # Initialize base worker
         super().__init__(worker_id, base_address, discovery_address, serialization_format)
         

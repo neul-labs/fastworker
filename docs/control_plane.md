@@ -2,6 +2,12 @@
 
 FastQueue uses a control plane architecture for centralized task coordination and management.
 
+**See Also:**
+- [Workers Guide](workers.md) - Worker configuration and management
+- [API Reference](api.md) - ControlPlaneWorker API documentation
+- [Configuration](configuration.md) - Environment variable configuration
+- [Troubleshooting](troubleshooting.md) - Common issues
+
 ## Overview
 
 The control plane architecture consists of:

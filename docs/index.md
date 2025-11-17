@@ -2,9 +2,25 @@
 
 A brokerless task queue for Python applications with automatic worker discovery and priority handling.
 
+**No Redis. No RabbitMQ. Just Python.**
+
 ## Overview
 
-FastQueue eliminates the complexity of traditional task queues by removing the need for message brokers like Redis or RabbitMQ. The system uses a **Control Plane Architecture** where:
+FastQueue eliminates the complexity of traditional task queues by removing the need for message brokers like Redis or RabbitMQ.
+
+### Deployment Simplicity
+
+**Traditional task queues require 4-6+ services:**
+- Your app + Redis broker + Workers + Result backend + Monitoring + HA components
+
+**FastQueue requires 2-3 Python processes:**
+- Your app + Control plane + Workers (optional)
+
+That's it. No external dependencies to deploy, manage, or secure.
+
+### Architecture
+
+The system uses a **Control Plane Architecture** where:
 
 - **Control Plane Worker**: Central coordinator that manages subworkers and processes tasks
 - **Subworkers**: Additional workers that register with the control plane for load distribution
@@ -49,11 +65,16 @@ FastQueue eliminates the complexity of traditional task queues by removing the n
 - [**Control Plane**](control_plane.md) - Control plane architecture and configuration
 - [**Workers**](workers.md) - Worker configuration and management
 - [**Clients**](clients.md) - Client usage and configuration
+- [**Configuration**](configuration.md) - Environment variables and configuration options
 
 ### Integration Guides
 - [**FastAPI Integration**](fastapi.md) - Comprehensive FastAPI integration guide
 - [**Framework Integration**](frameworks.md) - Flask, Django, Sanic, and other frameworks
 - [**NNG Patterns**](nng_patterns.md) - Network communication details
+
+### Resources
+- [**Limitations & Scope**](limitations.md) - What FastQueue is (and isn't), use cases, and when to use alternatives
+- [**Troubleshooting**](troubleshooting.md) - Common issues and solutions
 
 ## Architecture
 

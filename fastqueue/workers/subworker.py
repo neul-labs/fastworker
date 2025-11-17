@@ -1,6 +1,7 @@
 """Subworker implementation for FastQueue."""
 import asyncio
 import logging
+import os
 import signal
 from typing import Dict, Optional
 from datetime import datetime
@@ -18,14 +19,41 @@ from fastqueue.workers.worker import Worker
 logger = logging.getLogger(__name__)
 
 class SubWorker(Worker):
-    """Subworker that registers with control plane and processes tasks."""
-    
+    """Subworker that registers with control plane and processes tasks.
+
+    Configuration can be provided via environment variables:
+    - FASTQUEUE_WORKER_ID: Worker ID (required if not provided as argument)
+    - FASTQUEUE_CONTROL_PLANE_ADDRESS: Control plane address (required if not provided as argument)
+    - FASTQUEUE_BASE_ADDRESS: Base address for this subworker (default: tcp://127.0.0.1:5555)
+    - FASTQUEUE_DISCOVERY_ADDRESS: Service discovery address (default: tcp://127.0.0.1:5550)
+    - FASTQUEUE_SERIALIZATION_FORMAT: Serialization format - JSON or PICKLE (default: JSON)
+    """
+
     def __init__(self,
-                 worker_id: str,
-                 control_plane_address: str,
-                 base_address: str = "tcp://127.0.0.1:5555",
-                 discovery_address: str = "tcp://127.0.0.1:5550",
-                 serialization_format: SerializationFormat = SerializationFormat.JSON):
+                 worker_id: Optional[str] = None,
+                 control_plane_address: Optional[str] = None,
+                 base_address: Optional[str] = None,
+                 discovery_address: Optional[str] = None,
+                 serialization_format: Optional[SerializationFormat] = None):
+        # Load from environment variables with fallback to defaults
+        worker_id = worker_id or os.getenv("FASTQUEUE_WORKER_ID")
+        if not worker_id:
+            raise ValueError("worker_id must be provided either as argument or via FASTQUEUE_WORKER_ID environment variable")
+
+        control_plane_address = control_plane_address or os.getenv("FASTQUEUE_CONTROL_PLANE_ADDRESS")
+        if not control_plane_address:
+            raise ValueError("control_plane_address must be provided either as argument or via FASTQUEUE_CONTROL_PLANE_ADDRESS environment variable")
+
+        base_address = base_address or os.getenv("FASTQUEUE_BASE_ADDRESS", "tcp://127.0.0.1:5555")
+        discovery_address = discovery_address or os.getenv("FASTQUEUE_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550")
+
+        # Parse serialization format from string if needed
+        if serialization_format is None:
+            format_str = os.getenv("FASTQUEUE_SERIALIZATION_FORMAT", "JSON").upper()
+            serialization_format = (
+                SerializationFormat.PICKLE if format_str == "PICKLE"
+                else SerializationFormat.JSON
+            )
         super().__init__(worker_id, base_address, discovery_address, serialization_format)
         
         # Override discovery bus - subworkers should DIAL, not LISTEN

@@ -2,8 +2,27 @@
 
 A brokerless task queue for Python applications with automatic worker discovery and priority handling.
 
+**No Redis. No RabbitMQ. Just Python.**
+
 [![PyPI version](https://badge.fury.io/py/fastqueue.svg)](https://badge.fury.io/py/fastqueue)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Why FastQueue?
+
+Traditional task queues (Celery + Redis) require deploying and managing **4-6+ separate services**:
+- Your application
+- Redis broker
+- Celery workers
+- Redis result backend
+- Optional: Flower monitoring
+- Optional: Redis Sentinel for HA
+
+**FastQueue requires just 2-3 Python processes:**
+- Your application
+- FastQueue control plane
+- FastQueue workers (optional, for scaling)
+
+**That's it.** No external dependencies. No Redis to configure, monitor, backup, or secure. Just Python.
 
 ## Features
 
@@ -16,6 +35,8 @@ A brokerless task queue for Python applications with automatic worker discovery 
 - **Built-in Reliability** - Automatic retries and error handling
 - **FastAPI Integration** - Seamless integration with web applications
 - **Zero Configuration** - Works out of the box with sensible defaults
+
+**Note:** FastQueue is designed for moderate-scale Python applications (1K-10K tasks/min). For extreme scale, multi-language support, or complex workflows, see [Limitations & Scope](docs/limitations.md).
 
 ## Installation
 
@@ -217,6 +238,17 @@ poetry run black .
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
+
+## Documentation
+
+For detailed documentation, see:
+
+- [Documentation Index](docs/index.md) - Complete documentation
+- [Limitations & Scope](docs/limitations.md) - **Start here** - What FastQueue is and when to use it
+- [API Reference](docs/api.md) - Full API documentation
+- [FastAPI Integration](docs/fastapi.md) - Web framework integration
+- [Configuration Guide](docs/configuration.md) - Environment variables and settings
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 
 ## Contributing
 

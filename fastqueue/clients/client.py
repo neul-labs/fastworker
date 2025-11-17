@@ -1,6 +1,7 @@
 """Client implementation for FastQueue."""
 import asyncio
 import logging
+import os
 from typing import Any, Optional, Dict
 from fastqueue.patterns.nng_patterns import SurveyorRespondentPattern, BusPattern, ReqRepPattern
 from fastqueue.tasks.models import Task, TaskPriority, TaskResult, TaskStatus, CallbackInfo
@@ -12,21 +13,41 @@ from collections import deque
 logger = logging.getLogger(__name__)
 
 class Client:
-    """Client for submitting tasks to workers with built-in service discovery."""
-    
-    def __init__(self, 
-                 discovery_address: str = "tcp://127.0.0.1:5550",
-                 serialization_format: SerializationFormat = SerializationFormat.JSON,
-                 timeout: int = 30,
-                 retries: int = 3):
-        self.discovery_address = discovery_address
-        self.serialization_format = serialization_format
-        self.timeout = timeout
-        self.retries = retries
+    """Client for submitting tasks to workers with built-in service discovery.
+
+    Configuration can be provided via environment variables:
+    - FASTQUEUE_DISCOVERY_ADDRESS: Discovery address (default: tcp://127.0.0.1:5550)
+    - FASTQUEUE_SERIALIZATION_FORMAT: Serialization format - JSON or PICKLE (default: JSON)
+    - FASTQUEUE_TIMEOUT: Task timeout in seconds (default: 30)
+    - FASTQUEUE_RETRIES: Number of retries for failed submissions (default: 3)
+    """
+
+    def __init__(self,
+                 discovery_address: Optional[str] = None,
+                 serialization_format: Optional[SerializationFormat] = None,
+                 timeout: Optional[int] = None,
+                 retries: Optional[int] = None):
+        # Load from environment variables with fallback to defaults
+        self.discovery_address = discovery_address or os.getenv(
+            "FASTQUEUE_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550"
+        )
+
+        # Parse serialization format from string if needed
+        if serialization_format is None:
+            format_str = os.getenv("FASTQUEUE_SERIALIZATION_FORMAT", "JSON").upper()
+            self.serialization_format = (
+                SerializationFormat.PICKLE if format_str == "PICKLE"
+                else SerializationFormat.JSON
+            )
+        else:
+            self.serialization_format = serialization_format
+
+        self.timeout = timeout or int(os.getenv("FASTQUEUE_TIMEOUT", "30"))
+        self.retries = retries or int(os.getenv("FASTQUEUE_RETRIES", "3"))
         self.running = False
-        
+
         # Built-in service discovery bus
-        self.discovery_bus = BusPattern(discovery_address, listen=False)
+        self.discovery_bus = BusPattern(self.discovery_address, listen=False)
         self.workers = set()
         
         # Task queue for pending tasks (when no workers available)

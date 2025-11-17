@@ -2,6 +2,11 @@
 
 FastQueue leverages several nng patterns to provide robust, brokerless task queue functionality.
 
+**See Also:**
+- [Control Plane](control_plane.md) - How patterns are used in architecture
+- [Clients Guide](clients.md) - Client communication patterns
+- [Troubleshooting](troubleshooting.md) - Connection issues
+
 ## Surveyor/Respondent Pattern
 
 ### Usage
