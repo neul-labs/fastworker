@@ -5,7 +5,7 @@
 Clients are used to submit tasks to the control plane:
 
 ```python
-from fastqueue import Client
+from fastworker import Client
 
 client = Client()
 ```
@@ -101,7 +101,7 @@ status = client.get_status(task_id)
 Tasks can be submitted with different priorities:
 
 ```python
-from fastqueue.tasks.models import TaskPriority
+from fastworker.tasks.models import TaskPriority
 
 # Submit with different priorities
 task_id1 = await client.delay("my_task", priority=TaskPriority.CRITICAL)
@@ -143,8 +143,8 @@ Submit tasks with callback notifications to receive updates when tasks complete.
 ### Submitting Tasks with Callbacks
 
 ```python
-from fastqueue.patterns.nng_patterns import PairPattern
-from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+from fastworker.patterns.nng_patterns import PairPattern
+from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
 
 async def main():
     client = Client()
@@ -266,7 +266,7 @@ For FastAPI applications, create a single client instance:
 
 ```python
 from fastapi import FastAPI
-from fastqueue import Client
+from fastworker import Client
 
 app = FastAPI()
 client = Client()

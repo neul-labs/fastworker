@@ -1,13 +1,13 @@
 # OpenTelemetry Integration
 
-FastQueue includes optional OpenTelemetry integration for distributed tracing and metrics collection, making it production-ready with full observability.
+FastWorker includes optional OpenTelemetry integration for distributed tracing and metrics collection, making it production-ready with full observability.
 
 ## Installation
 
-Install FastQueue with telemetry support:
+Install FastWorker with telemetry support:
 
 ```bash
-pip install fastqueue[telemetry]
+pip install fastworker[telemetry]
 ```
 
 Or install OpenTelemetry dependencies separately:
@@ -22,10 +22,10 @@ Enable telemetry using environment variables:
 
 ```bash
 # Enable telemetry
-export FASTQUEUE_TELEMETRY_ENABLED=true
+export FASTWORKER_TELEMETRY_ENABLED=true
 
 # Configure OpenTelemetry (standard OTEL env vars)
-export OTEL_SERVICE_NAME=my-fastqueue-service
+export OTEL_SERVICE_NAME=my-fastworker-service
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 # Optional: Configure sampling, headers, etc.
@@ -37,8 +37,8 @@ export OTEL_METRICS_EXPORTER=otlp
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FASTQUEUE_TELEMETRY_ENABLED` | Enable/disable telemetry | `false` |
-| `OTEL_SERVICE_NAME` | Service name in traces/metrics | `fastqueue` |
+| `FASTWORKER_TELEMETRY_ENABLED` | Enable/disable telemetry | `false` |
+| `OTEL_SERVICE_NAME` | Service name in traces/metrics | `fastworker` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP collector endpoint | `http://localhost:4317` |
 | `OTEL_TRACES_SAMPLER` | Trace sampling strategy | `always_on` |
 | `OTEL_METRICS_EXPORTER` | Metrics exporter type | `otlp` |
@@ -47,7 +47,7 @@ export OTEL_METRICS_EXPORTER=otlp
 
 ### Traces (Spans)
 
-FastQueue automatically creates spans for:
+FastWorker automatically creates spans for:
 
 1. **Client Operations**
    - `client.submit_task` - Task submission
@@ -63,30 +63,30 @@ FastQueue automatically creates spans for:
 
 ### Metrics
 
-FastQueue emits the following metrics:
+FastWorker emits the following metrics:
 
 #### Counters
 
-- **`fastqueue.tasks.submitted`** - Number of tasks submitted
+- **`fastworker.tasks.submitted`** - Number of tasks submitted
   - Labels: `task.name`, `task.priority`
 
-- **`fastqueue.tasks.completed`** - Number of successfully completed tasks
+- **`fastworker.tasks.completed`** - Number of successfully completed tasks
   - Labels: `task.name`, `task.priority`, `worker.id`
 
-- **`fastqueue.tasks.failed`** - Number of failed tasks
+- **`fastworker.tasks.failed`** - Number of failed tasks
   - Labels: `task.name`, `task.priority`, `worker.id`
 
 #### Histograms
 
-- **`fastqueue.tasks.duration`** - Task execution duration in milliseconds
+- **`fastworker.tasks.duration`** - Task execution duration in milliseconds
   - Labels: `task.name`, `task.priority`, `worker.id`
 
 #### Gauges
 
-- **`fastqueue.workers.active`** - Number of active workers
+- **`fastworker.workers.active`** - Number of active workers
   - Labels: `worker.id`
 
-- **`fastqueue.queue.size`** - Number of tasks in queue
+- **`fastworker.queue.size`** - Number of tasks in queue
   - Labels: `worker.id`, `queue.priority`
 
 ## Usage Examples
@@ -97,11 +97,11 @@ FastQueue emits the following metrics:
 # No code changes needed! Just enable via environment variables
 import os
 
-os.environ["FASTQUEUE_TELEMETRY_ENABLED"] = "true"
+os.environ["FASTWORKER_TELEMETRY_ENABLED"] = "true"
 os.environ["OTEL_SERVICE_NAME"] = "my-service"
 os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://jaeger:4317"
 
-from fastqueue import Client
+from fastworker import Client
 
 # Telemetry automatically enabled
 client = Client()
@@ -116,8 +116,8 @@ await client.delay("process_data", data, priority="high")
 Add detailed tracing to your tasks:
 
 ```python
-from fastqueue import task
-from fastqueue.telemetry import trace_task
+from fastworker import task
+from fastworker.telemetry import trace_task
 
 @task
 @trace_task  # Add detailed task tracing
@@ -139,7 +139,7 @@ async def async_process_data(data: dict) -> dict:
 For custom operations:
 
 ```python
-from fastqueue.telemetry import trace_operation, record_task_metric
+from fastworker.telemetry import trace_operation, record_task_metric
 
 # Custom span
 with trace_operation("custom_operation", attributes={"key": "value"}):
@@ -165,11 +165,11 @@ docker run -d --name jaeger \
   jaegertracing/all-in-one:latest
 ```
 
-Configure FastQueue:
+Configure FastWorker:
 
 ```bash
-export FASTQUEUE_TELEMETRY_ENABLED=true
-export OTEL_SERVICE_NAME=fastqueue-app
+export FASTWORKER_TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=fastworker-app
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ```
 
@@ -200,11 +200,11 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
 ```
 
-Configure FastQueue:
+Configure FastWorker:
 
 ```bash
-export FASTQUEUE_TELEMETRY_ENABLED=true
-export OTEL_SERVICE_NAME=fastqueue-app
+export FASTWORKER_TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=fastworker-app
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
 ```
 
@@ -280,8 +280,8 @@ scrape_configs:
 ### Datadog
 
 ```bash
-export FASTQUEUE_TELEMETRY_ENABLED=true
-export OTEL_SERVICE_NAME=fastqueue-app
+export FASTWORKER_TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=fastworker-app
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
 export DD_API_KEY=your_api_key
 ```
@@ -289,8 +289,8 @@ export DD_API_KEY=your_api_key
 ### New Relic
 
 ```bash
-export FASTQUEUE_TELEMETRY_ENABLED=true
-export OTEL_SERVICE_NAME=fastqueue-app
+export FASTWORKER_TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=fastworker-app
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.nr-data.net:4317
 export NEW_RELIC_API_KEY=your_api_key
 ```
@@ -298,8 +298,8 @@ export NEW_RELIC_API_KEY=your_api_key
 ### Honeycomb
 
 ```bash
-export FASTQUEUE_TELEMETRY_ENABLED=true
-export OTEL_SERVICE_NAME=fastqueue-app
+export FASTWORKER_TELEMETRY_ENABLED=true
+export OTEL_SERVICE_NAME=fastworker-app
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io:443
 export HONEYCOMB_API_KEY=your_api_key
 ```
@@ -312,37 +312,37 @@ Here's a sample Prometheus query for key metrics:
 
 **Task Submission Rate:**
 ```promql
-rate(fastqueue_tasks_submitted_total[5m])
+rate(fastworker_tasks_submitted_total[5m])
 ```
 
 **Task Completion Rate by Priority:**
 ```promql
-rate(fastqueue_tasks_completed_total[5m]) by (task_priority)
+rate(fastworker_tasks_completed_total[5m]) by (task_priority)
 ```
 
 **Task Failure Rate:**
 ```promql
-rate(fastqueue_tasks_failed_total[5m])
+rate(fastworker_tasks_failed_total[5m])
 ```
 
 **Average Task Duration:**
 ```promql
-rate(fastqueue_tasks_duration_sum[5m]) / rate(fastqueue_tasks_duration_count[5m])
+rate(fastworker_tasks_duration_sum[5m]) / rate(fastworker_tasks_duration_count[5m])
 ```
 
 **P95 Task Duration:**
 ```promql
-histogram_quantile(0.95, rate(fastqueue_tasks_duration_bucket[5m]))
+histogram_quantile(0.95, rate(fastworker_tasks_duration_bucket[5m]))
 ```
 
 **Active Workers:**
 ```promql
-fastqueue_workers_active
+fastworker_workers_active
 ```
 
 **Queue Size by Priority:**
 ```promql
-fastqueue_queue_size by (queue_priority)
+fastworker_queue_size by (queue_priority)
 ```
 
 ## Trace Examples
@@ -393,37 +393,37 @@ services:
     ports:
       - "4317:4317"
 
-  # FastQueue App
+  # FastWorker App
   app:
     build: .
     environment:
-      FASTQUEUE_TELEMETRY_ENABLED: "true"
-      OTEL_SERVICE_NAME: "my-fastqueue-app"
+      FASTWORKER_TELEMETRY_ENABLED: "true"
+      OTEL_SERVICE_NAME: "my-fastworker-app"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       - otel-collector
       - control-plane
 
-  # FastQueue Control Plane
+  # FastWorker Control Plane
   control-plane:
     build: .
-    command: fastqueue control-plane --task-modules tasks
+    command: fastworker control-plane --task-modules tasks
     environment:
-      FASTQUEUE_TELEMETRY_ENABLED: "true"
-      OTEL_SERVICE_NAME: "fastqueue-control-plane"
+      FASTWORKER_TELEMETRY_ENABLED: "true"
+      OTEL_SERVICE_NAME: "fastworker-control-plane"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
     depends_on:
       - otel-collector
 
-  # FastQueue Workers
+  # FastWorker Workers
   worker:
     build: .
-    command: fastqueue subworker --task-modules tasks
+    command: fastworker subworker --task-modules tasks
     environment:
-      FASTQUEUE_TELEMETRY_ENABLED: "true"
-      OTEL_SERVICE_NAME: "fastqueue-worker"
+      FASTWORKER_TELEMETRY_ENABLED: "true"
+      OTEL_SERVICE_NAME: "fastworker-worker"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
-      FASTQUEUE_CONTROL_PLANE_ADDRESS: "tcp://control-plane:5555"
+      FASTWORKER_CONTROL_PLANE_ADDRESS: "tcp://control-plane:5555"
     depends_on:
       - control-plane
       - otel-collector
@@ -438,9 +438,9 @@ services:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: fastqueue-telemetry-config
+  name: fastworker-telemetry-config
 data:
-  FASTQUEUE_TELEMETRY_ENABLED: "true"
+  FASTWORKER_TELEMETRY_ENABLED: "true"
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
 
 ---
@@ -448,7 +448,7 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fastqueue-worker
+  name: fastworker-worker
 spec:
   replicas: 3
   template:
@@ -458,15 +458,15 @@ spec:
         image: myapp:latest
         envFrom:
         - configMapRef:
-            name: fastqueue-telemetry-config
+            name: fastworker-telemetry-config
         env:
         - name: OTEL_SERVICE_NAME
-          value: "fastqueue-worker"
+          value: "fastworker-worker"
         - name: POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: FASTQUEUE_WORKER_ID
+        - name: FASTWORKER_WORKER_ID
           value: "$(POD_NAME)"
 ```
 
@@ -513,7 +513,7 @@ processor = BatchSpanProcessor(
 **Check if enabled:**
 ```python
 import os
-print(os.getenv("FASTQUEUE_TELEMETRY_ENABLED"))  # Should be "true"
+print(os.getenv("FASTWORKER_TELEMETRY_ENABLED"))  # Should be "true"
 ```
 
 **Check dependencies:**
@@ -570,7 +570,7 @@ export OTEL_SERVICE_NAME=myapp-worker
 ### 2. Add Custom Attributes
 
 ```python
-from fastqueue.telemetry import trace_operation
+from fastworker.telemetry import trace_operation
 
 with trace_operation("custom_op", attributes={
     "user.id": user_id,
@@ -595,20 +595,20 @@ with trace_operation("custom_op", attributes={
 ```yaml
 # Prometheus alert rules
 groups:
-  - name: fastqueue
+  - name: fastworker
     rules:
       - alert: HighTaskFailureRate
-        expr: rate(fastqueue_tasks_failed_total[5m]) > 0.1
+        expr: rate(fastworker_tasks_failed_total[5m]) > 0.1
         annotations:
           summary: "High task failure rate"
 
       - alert: LongTaskDuration
-        expr: histogram_quantile(0.95, rate(fastqueue_tasks_duration_bucket[5m])) > 5000
+        expr: histogram_quantile(0.95, rate(fastworker_tasks_duration_bucket[5m])) > 5000
         annotations:
           summary: "Task P95 duration > 5s"
 
       - alert: NoActiveWorkers
-        expr: fastqueue_workers_active == 0
+        expr: fastworker_workers_active == 0
         annotations:
           summary: "No active workers"
 ```

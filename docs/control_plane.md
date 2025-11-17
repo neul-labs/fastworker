@@ -1,6 +1,6 @@
 # Control Plane Architecture
 
-FastQueue uses a control plane architecture for centralized task coordination and management.
+FastWorker uses a control plane architecture for centralized task coordination and management.
 
 **See Also:**
 - [Workers Guide](workers.md) - Worker configuration and management
@@ -24,7 +24,7 @@ The control plane worker acts as both:
 
 ### Starting the Control Plane
 
-fastqueue control-plane \
+fastworker control-plane \
   --worker-id control-plane \
   --base-address tcp://127.0.0.1:5555 \
   --discovery-address tcp://127.0.0.1:5550 \
@@ -58,7 +58,7 @@ Subworkers register with the control plane and receive distributed tasks.
 
 ### Starting a Subworker
 
-fastqueue subworker \
+fastworker subworker \
   --worker-id subworker1 \
   --control-plane-address tcp://127.0.0.1:5555 \
   --base-address tcp://127.0.0.1:5561 \
@@ -102,14 +102,14 @@ The control plane maintains a result cache with:
 
 ### Configuration
 
-fastqueue control-plane \
+fastworker control-plane \
   --result-cache-size 20000 \
   --result-cache-ttl 7200 \
   --task-modules mytasks
 
 ### Querying Results
 
-fastqueue status --task-id <uuid>
+fastworker status --task-id <uuid>
 
 Or programmatically:
 
@@ -121,13 +121,13 @@ result = await client.get_task_result(task_id)
 
 Simply start additional subworkers:
 
-fastqueue control-plane --task-modules mytasks
+fastworker control-plane --task-modules mytasks
 
-fastqueue subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
+fastworker subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
 
-fastqueue subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
+fastworker subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
 
-fastqueue subworker --worker-id sw3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules mytasks
+fastworker subworker --worker-id sw3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules mytasks
 
 Tasks will automatically distribute across all available subworkers.
 
@@ -141,7 +141,7 @@ Tasks will automatically distribute across all available subworkers.
 
 The control plane provides subworker status:
 
-from fastqueue.workers.control_plane import ControlPlaneWorker
+from fastworker.workers.control_plane import ControlPlaneWorker
 
 control_plane = ControlPlaneWorker()
 status = control_plane.get_subworker_status()

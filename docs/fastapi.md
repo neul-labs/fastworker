@@ -1,6 +1,6 @@
 # FastAPI Integration
 
-FastQueue integrates seamlessly with FastAPI applications, providing a brokerless alternative to Celery.
+FastWorker integrates seamlessly with FastAPI applications, providing a brokerless alternative to Celery.
 
 **See Also:**
 - [Framework Integration](frameworks.md) - Flask, Django, Sanic, and other frameworks
@@ -14,7 +14,7 @@ FastQueue integrates seamlessly with FastAPI applications, providing a brokerles
 
 ```python
 # tasks.py
-from fastqueue import task
+from fastworker import task
 
 @task
 def process_user_registration(user_id: int, email: str) -> dict:
@@ -34,19 +34,19 @@ def send_notification(user_id: int, message: str) -> dict:
 ```python
 # main.py
 from fastapi import FastAPI
-from fastqueue import Client
+from fastworker import Client
 
 app = FastAPI(title="My FastAPI App")
 client = Client()
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize FastQueue client on startup."""
+    """Initialize FastWorker client on startup."""
     await client.start()
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Clean up FastQueue client on shutdown."""
+    """Clean up FastWorker client on shutdown."""
     client.stop()
 
 @app.post("/register/")
@@ -65,13 +65,13 @@ In separate terminals, start the control plane and subworkers to process tasks:
 
 ```bash
 # Terminal 1: Start control plane
-fastqueue control-plane --worker-id control-plane --task-modules tasks
+fastworker control-plane --worker-id control-plane --task-modules tasks
 
 # Terminal 2: Start subworker 1 (optional, for scaling)
-fastqueue subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules tasks
+fastworker subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules tasks
 
 # Terminal 3: Start subworker 2 (optional, for scaling)
-fastqueue subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules tasks
+fastworker subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules tasks
 ```
 
 ## Advanced Integration Patterns
@@ -89,7 +89,7 @@ async def send_notification_async(user_id: int, message: str, background_tasks: 
     # For simple background tasks, use FastAPI's BackgroundTasks
     background_tasks.add_task(send_notification_task, user_id, message)
     
-    # For complex distributed processing, use FastQueue
+    # For complex distributed processing, use FastWorker
     # await client.delay("send_notification", user_id, message)
     
     return {"message": "Notification queued"}
@@ -106,7 +106,7 @@ def send_notification_task(user_id: int, message: str):
 @app.post("/process/")
 async def process_with_fallback(data: dict):
     """Process data with fallback mechanism."""
-    # Try to process with FastQueue
+    # Try to process with FastWorker
     result = await client.delay("process_data", data)
     
     if result.status == "failure":
@@ -137,7 +137,7 @@ async def health_check():
 ### Task Status Tracking
 
 ```python
-from fastqueue.tasks.models import TaskStatus
+from fastworker.tasks.models import TaskStatus
 
 # Store task IDs for status tracking
 task_storage = {}
@@ -170,12 +170,12 @@ async def get_task_status(task_id: str):
 
 ```python
 import os
-from fastqueue import Client
+from fastworker import Client
 
 # Configure based on environment
-DISCOVERY_ADDRESS = os.getenv("FASTQUEUE_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550")
-TIMEOUT = int(os.getenv("FASTQUEUE_TIMEOUT", "30"))
-RETRIES = int(os.getenv("FASTQUEUE_RETRIES", "3"))
+DISCOVERY_ADDRESS = os.getenv("FASTWORKER_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550")
+TIMEOUT = int(os.getenv("FASTWORKER_TIMEOUT", "30"))
+RETRIES = int(os.getenv("FASTWORKER_RETRIES", "3"))
 
 client = Client(
     discovery_address=DISCOVERY_ADDRESS,
@@ -189,8 +189,8 @@ client = Client(
 ```python
 from fastapi import Depends
 
-async def get_fastqueue_client():
-    """Dependency to get FastQueue client."""
+async def get_fastworker_client():
+    """Dependency to get FastWorker client."""
     # In a real implementation, you might want to manage a singleton
     client = Client()
     await client.start()
@@ -200,7 +200,7 @@ async def get_fastqueue_client():
         client.stop()
 
 @app.post("/process/")
-async def process_data(data: dict, client: Client = Depends(get_fastqueue_client)):
+async def process_data(data: dict, client: Client = Depends(get_fastworker_client)):
     """Process data with injected client."""
     result = await client.delay("process_data", data)
     if result.status == "success":
@@ -233,18 +233,18 @@ Start specialized workers:
 
 ```bash
 # Start control plane for CPU intensive tasks
-fastqueue control-plane --worker-id cpu-control-plane --base-address tcp://127.0.0.1:5555 --task-modules cpu_intensive_tasks
+fastworker control-plane --worker-id cpu-control-plane --base-address tcp://127.0.0.1:5555 --task-modules cpu_intensive_tasks
 
 # CPU intensive subworkers
-fastqueue subworker --worker-id cpu-worker-1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules cpu_intensive_tasks
-fastqueue subworker --worker-id cpu-worker-2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules cpu_intensive_tasks
+fastworker subworker --worker-id cpu-worker-1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules cpu_intensive_tasks
+fastworker subworker --worker-id cpu-worker-2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules cpu_intensive_tasks
 
 # Start control plane for I/O intensive tasks (different port range)
-fastqueue control-plane --worker-id io-control-plane --base-address tcp://127.0.0.1:5575 --task-modules io_intensive_tasks
+fastworker control-plane --worker-id io-control-plane --base-address tcp://127.0.0.1:5575 --task-modules io_intensive_tasks
 
 # I/O intensive subworkers
-fastqueue subworker --worker-id io-worker-1 --control-plane-address tcp://127.0.0.1:5575 --base-address tcp://127.0.0.1:5581 --task-modules io_intensive_tasks
-fastqueue subworker --worker-id io-worker-2 --control-plane-address tcp://127.0.0.1:5575 --base-address tcp://127.0.0.1:5585 --task-modules io_intensive_tasks
+fastworker subworker --worker-id io-worker-1 --control-plane-address tcp://127.0.0.1:5575 --base-address tcp://127.0.0.1:5581 --task-modules io_intensive_tasks
+fastworker subworker --worker-id io-worker-2 --control-plane-address tcp://127.0.0.1:5575 --base-address tcp://127.0.0.1:5585 --task-modules io_intensive_tasks
 ```
 
 ### Monitoring and Metrics
@@ -284,7 +284,7 @@ async def process_data(data: dict):
 
 ## Task Completion Callbacks
 
-FastQueue supports task completion callbacks using NNG messaging patterns. This allows your FastAPI application to receive notifications when tasks are completed, enabling more responsive and interactive applications.
+FastWorker supports task completion callbacks using NNG messaging patterns. This allows your FastAPI application to receive notifications when tasks are completed, enabling more responsive and interactive applications.
 
 ### Using Callbacks
 
@@ -312,8 +312,8 @@ async def process_with_callback(data: dict, callback_address: str):
 To receive callbacks in your FastAPI application, you can create a listener endpoint:
 
 ```python
-from fastqueue.patterns.nng_patterns import PairPattern
-from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+from fastworker.patterns.nng_patterns import PairPattern
+from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
 
 @app.post("/start-processing-with-internal-callback/")
 async def start_processing_with_internal_callback(data: dict):

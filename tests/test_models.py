@@ -1,8 +1,8 @@
-"""Test cases for FastQueue models."""
+"""Test cases for FastWorker models."""
 import pytest
 import uuid
 from datetime import datetime
-from fastqueue.tasks.models import (
+from fastworker.tasks.models import (
     Task, TaskPriority, TaskStatus, TaskResult, CallbackInfo
 )
 

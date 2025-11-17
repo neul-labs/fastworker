@@ -1,10 +1,10 @@
-"""Test cases for FastQueue Worker."""
+"""Test cases for FastWorker Worker."""
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from fastqueue.workers.worker import Worker
-from fastqueue.tasks.models import Task, TaskPriority, TaskResult, TaskStatus
-from fastqueue.tasks.registry import task_registry, task
+from fastworker.workers.worker import Worker
+from fastworker.tasks.models import Task, TaskPriority, TaskResult, TaskStatus
+from fastworker.tasks.registry import task_registry, task
 
 
 @pytest.fixture

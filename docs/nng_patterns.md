@@ -1,6 +1,6 @@
 # NNG Patterns Used
 
-FastQueue leverages several nng patterns to provide robust, brokerless task queue functionality.
+FastWorker leverages several nng patterns to provide robust, brokerless task queue functionality.
 
 **See Also:**
 - [Control Plane](control_plane.md) - How patterns are used in architecture
@@ -95,11 +95,11 @@ pair_client = pynng.Pair0(dial="tcp://127.0.0.1:6000")
 - Reliable delivery
 - Perfect for callback notifications
 
-### Use in FastQueue
-FastQueue uses PairPattern for task completion callbacks:
+### Use in FastWorker
+FastWorker uses PairPattern for task completion callbacks:
 
 ```python
-from fastqueue.patterns.nng_patterns import PairPattern
+from fastworker.patterns.nng_patterns import PairPattern
 
 # Create callback listener
 callback_listener = PairPattern("tcp://127.0.0.1:6000", is_server=True)
@@ -132,11 +132,11 @@ sub.subscribe(b"topic")  # Subscribe to specific topic
 - Scalable distribution
 - Efficient broadcasting
 
-### Use in FastQueue
-FastQueue uses PubSubPattern for priority-based task distribution:
+### Use in FastWorker
+FastWorker uses PubSubPattern for priority-based task distribution:
 
 ```python
-from fastqueue.patterns.nng_patterns import PubSubPattern
+from fastworker.patterns.nng_patterns import PubSubPattern
 
 # Publisher (control plane)
 publisher = PubSubPattern("tcp://127.0.0.1:5556", is_server=True)
@@ -153,7 +153,7 @@ task_data = await subscriber.recv()
 
 ### Priority-Based Task Routing
 
-FastQueue uses multiple Surveyor/Respondent pairs for different priority levels:
+FastWorker uses multiple Surveyor/Respondent pairs for different priority levels:
 
 ```python
 # Critical priority tasks
@@ -242,7 +242,7 @@ socket = pynng.Req0(
 
 ## Comparison with Traditional Message Brokers
 
-| Feature | FastQueue (NNG) | Traditional Brokers |
+| Feature | FastWorker (NNG) | Traditional Brokers |
 |---------|----------------|-------------------|
 | Broker Required | No | Yes |
 | Single Point of Failure | No | Yes |
@@ -251,4 +251,4 @@ socket = pynng.Req0(
 | Retry Mechanisms | Built-in | Varies by broker |
 | Language Support | Multiple | Varies by broker |
 
-The use of NNG patterns makes FastQueue inherently more robust and easier to deploy than traditional message broker-based solutions.
+The use of NNG patterns makes FastWorker inherently more robust and easier to deploy than traditional message broker-based solutions.

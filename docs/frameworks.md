@@ -1,6 +1,6 @@
 # Framework Integration Guide
 
-FastQueue is a **framework-agnostic** task queue that works with any Python web framework or application. The Client is simply an async Python class, making it compatible with FastAPI, Flask, Django, Sanic, and any other framework that supports async operations.
+FastWorker is a **framework-agnostic** task queue that works with any Python web framework or application. The Client is simply an async Python class, making it compatible with FastAPI, Flask, Django, Sanic, and any other framework that supports async operations.
 
 **See Also:**
 - [FastAPI Integration](fastapi.md) - Detailed FastAPI integration guide
@@ -13,7 +13,7 @@ FastQueue is a **framework-agnostic** task queue that works with any Python web 
 The core Client can be used in any Python application:
 
 ```python
-from fastqueue import Client
+from fastworker import Client
 import asyncio
 
 async def main():
@@ -44,7 +44,7 @@ See the dedicated [FastAPI Integration](fastapi.md) guide for comprehensive exam
 
 ```python
 from fastapi import FastAPI
-from fastqueue import Client
+from fastworker import Client
 
 app = FastAPI()
 client = Client()
@@ -65,13 +65,13 @@ async def process_data(data: dict):
 
 ## Flask Integration
 
-Flask can integrate with FastQueue using async support (Flask 2.0+).
+Flask can integrate with FastWorker using async support (Flask 2.0+).
 
 ### Flask with async/await
 
 ```python
 from flask import Flask, request, jsonify
-from fastqueue import Client
+from fastworker import Client
 import asyncio
 
 app = Flask(__name__)
@@ -79,12 +79,12 @@ client = Client()
 
 @app.before_serving
 async def startup():
-    """Initialize FastQueue client before serving."""
+    """Initialize FastWorker client before serving."""
     await client.start()
 
 @app.after_serving
 async def shutdown():
-    """Clean up FastQueue client after serving."""
+    """Clean up FastWorker client after serving."""
     client.stop()
 
 @app.route('/process/', methods=['POST'])
@@ -115,7 +115,7 @@ For traditional Flask without async support:
 
 ```python
 from flask import Flask, request, jsonify
-from fastqueue import Client
+from fastworker import Client
 import asyncio
 import threading
 
@@ -134,7 +134,7 @@ def start_background_loop(loop):
 
 @app.before_first_request
 def startup():
-    """Initialize FastQueue client and event loop."""
+    """Initialize FastWorker client and event loop."""
     global loop
     loop = asyncio.new_event_loop()
     t = threading.Thread(target=start_background_loop, args=(loop,), daemon=True)
@@ -165,7 +165,7 @@ if __name__ == '__main__':
 
 ## Django Integration
 
-Django can integrate with FastQueue using async views (Django 3.1+).
+Django can integrate with FastWorker using async views (Django 3.1+).
 
 ### Django Async Views
 
@@ -173,7 +173,7 @@ Django can integrate with FastQueue using async views (Django 3.1+).
 # views.py
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from fastqueue import Client
+from fastworker import Client
 import json
 
 client = Client()
@@ -206,7 +206,7 @@ async def get_result(request, task_id):
 ```python
 # apps.py
 from django.apps import AppConfig
-from fastqueue import Client
+from fastworker import Client
 import asyncio
 
 class MyAppConfig(AppConfig):
@@ -214,7 +214,7 @@ class MyAppConfig(AppConfig):
     name = 'myapp'
 
     def ready(self):
-        """Initialize FastQueue client when Django app is ready."""
+        """Initialize FastWorker client when Django app is ready."""
         client = Client()
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -236,23 +236,23 @@ urlpatterns = [
 
 ## Sanic Integration
 
-Sanic has native async support, making it ideal for FastQueue.
+Sanic has native async support, making it ideal for FastWorker.
 
 ```python
 from sanic import Sanic, response
-from fastqueue import Client
+from fastworker import Client
 
 app = Sanic("MyApp")
 client = Client()
 
 @app.before_server_start
 async def setup_client(app, loop):
-    """Initialize FastQueue client before server starts."""
+    """Initialize FastWorker client before server starts."""
     await client.start()
 
 @app.after_server_stop
 async def cleanup_client(app, loop):
-    """Clean up FastQueue client after server stops."""
+    """Clean up FastWorker client after server stops."""
     client.stop()
 
 @app.post("/process/")
@@ -279,12 +279,12 @@ if __name__ == '__main__':
 
 ## Tornado Integration
 
-Tornado's native async support works seamlessly with FastQueue.
+Tornado's native async support works seamlessly with FastWorker.
 
 ```python
 import tornado.ioloop
 import tornado.web
-from fastqueue import Client
+from fastworker import Client
 import json
 
 client = Client()
@@ -310,7 +310,7 @@ class ResultHandler(tornado.web.RequestHandler):
             self.write({"error": "Result not found"})
 
 async def startup():
-    """Initialize FastQueue client."""
+    """Initialize FastWorker client."""
     await client.start()
 
 def make_app():
@@ -335,19 +335,19 @@ Quart is an async version of Flask with native async/await support.
 
 ```python
 from quart import Quart, request, jsonify
-from fastqueue import Client
+from fastworker import Client
 
 app = Quart(__name__)
 client = Client()
 
 @app.before_serving
 async def startup():
-    """Initialize FastQueue client before serving."""
+    """Initialize FastWorker client before serving."""
     await client.start()
 
 @app.after_serving
 async def shutdown():
-    """Clean up FastQueue client after serving."""
+    """Clean up FastWorker client after serving."""
     client.stop()
 
 @app.route('/process/', methods=['POST'])
@@ -374,10 +374,10 @@ if __name__ == '__main__':
 
 ## Standalone Python Script
 
-FastQueue can be used in any Python script:
+FastWorker can be used in any Python script:
 
 ```python
-from fastqueue import Client
+from fastworker import Client
 import asyncio
 
 async def main():
@@ -464,9 +464,9 @@ Use environment variables for configuration:
 import os
 
 client = Client(
-    discovery_address=os.getenv("FASTQUEUE_DISCOVERY", "tcp://127.0.0.1:5550"),
-    timeout=int(os.getenv("FASTQUEUE_TIMEOUT", "30")),
-    retries=int(os.getenv("FASTQUEUE_RETRIES", "3"))
+    discovery_address=os.getenv("FASTWORKER_DISCOVERY", "tcp://127.0.0.1:5550"),
+    timeout=int(os.getenv("FASTWORKER_TIMEOUT", "30")),
+    retries=int(os.getenv("FASTWORKER_RETRIES", "3"))
 )
 ```
 
@@ -485,7 +485,7 @@ client = Client(
 
 ## Summary
 
-FastQueue's framework-agnostic design means you can:
+FastWorker's framework-agnostic design means you can:
 
 1. Use it with any Python web framework
 2. Integrate it into existing applications with minimal changes

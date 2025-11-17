@@ -1,9 +1,9 @@
-"""Test cases for FastQueue Client."""
+"""Test cases for FastWorker Client."""
 import pytest
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
-from fastqueue.clients.client import Client
-from fastqueue.tasks.models import Task, TaskPriority, TaskResult, TaskStatus
+from fastworker.clients.client import Client
+from fastworker.tasks.models import Task, TaskPriority, TaskResult, TaskStatus
 
 
 @pytest.mark.asyncio

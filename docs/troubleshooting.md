@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide covers common issues you might encounter when using FastQueue and how to resolve them.
+This guide covers common issues you might encounter when using FastWorker and how to resolve them.
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Terminal 1: Start control plane first
-   fastqueue control-plane --task-modules tasks
+   fastworker control-plane --task-modules tasks
 
    # Terminal 2: Then start your client application
    python app.py
@@ -72,8 +72,8 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Listen on all interfaces
-   export FASTQUEUE_DISCOVERY_ADDRESS=tcp://0.0.0.0:5550
-   export FASTQUEUE_BASE_ADDRESS=tcp://0.0.0.0:5555
+   export FASTWORKER_DISCOVERY_ADDRESS=tcp://0.0.0.0:5550
+   export FASTWORKER_BASE_ADDRESS=tcp://0.0.0.0:5555
    ```
 
 ### Client Timeout Errors
@@ -91,7 +91,7 @@ This guide covers common issues you might encounter when using FastQueue and how
    client = Client(timeout=120)  # 2 minutes
 
    # Or via environment variable
-   export FASTQUEUE_TIMEOUT=120
+   export FASTWORKER_TIMEOUT=120
    ```
 
 2. **Check Worker Health**
@@ -132,7 +132,7 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Specify task modules when starting workers
-   fastqueue control-plane --task-modules mytasks
+   fastworker control-plane --task-modules mytasks
 
    # Or import explicitly
    from mytasks import my_task  # Registers via @task decorator
@@ -208,7 +208,7 @@ This guide covers common issues you might encounter when using FastQueue and how
    import logging
 
    logging.basicConfig(level=logging.DEBUG)
-   logger = logging.getLogger("fastqueue")
+   logger = logging.getLogger("fastworker")
    logger.setLevel(logging.DEBUG)
    ```
 
@@ -234,7 +234,7 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Subworker must specify control plane address
-   fastqueue subworker \
+   fastworker subworker \
      --worker-id sw1 \
      --control-plane-address tcp://127.0.0.1:5555 \
      --task-modules tasks
@@ -265,8 +265,8 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Start additional subworkers
-   fastqueue subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules tasks
-   fastqueue subworker --worker-id sw3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules tasks
+   fastworker subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules tasks
+   fastworker subworker --worker-id sw3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules tasks
    ```
 
 2. **Optimize Task Implementation**
@@ -305,8 +305,8 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Reduce cache size
-   export FASTQUEUE_RESULT_CACHE_SIZE=5000
-   export FASTQUEUE_RESULT_CACHE_TTL=1800  # 30 minutes
+   export FASTWORKER_RESULT_CACHE_SIZE=5000
+   export FASTWORKER_RESULT_CACHE_TTL=1800  # 30 minutes
    ```
 
 2. **Process Large Data in Chunks**
@@ -350,10 +350,10 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Check if variable is set
-   echo $FASTQUEUE_DISCOVERY_ADDRESS
+   echo $FASTWORKER_DISCOVERY_ADDRESS
 
    # Export if needed
-   export FASTQUEUE_DISCOVERY_ADDRESS=tcp://127.0.0.1:5550
+   export FASTWORKER_DISCOVERY_ADDRESS=tcp://127.0.0.1:5550
    ```
 
 2. **Load .env Files**
@@ -372,7 +372,7 @@ This guide covers common issues you might encounter when using FastQueue and how
    Explicit arguments override environment variables:
 
    ```python
-   # FASTQUEUE_TIMEOUT=60 is set
+   # FASTWORKER_TIMEOUT=60 is set
 
    # This uses 60 from env var
    client = Client()
@@ -404,13 +404,13 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Control plane
-   export FASTQUEUE_BASE_ADDRESS=tcp://127.0.0.1:6555
+   export FASTWORKER_BASE_ADDRESS=tcp://127.0.0.1:6555
 
    # Subworker 1
-   export FASTQUEUE_BASE_ADDRESS=tcp://127.0.0.1:6561
+   export FASTWORKER_BASE_ADDRESS=tcp://127.0.0.1:6561
 
    # Subworker 2
-   export FASTQUEUE_BASE_ADDRESS=tcp://127.0.0.1:6565
+   export FASTWORKER_BASE_ADDRESS=tcp://127.0.0.1:6565
    ```
 
 3. **Ensure Clean Shutdown**
@@ -436,7 +436,7 @@ This guide covers common issues you might encounter when using FastQueue and how
 1. **Use JSON Instead**
 
    ```bash
-   export FASTQUEUE_SERIALIZATION_FORMAT=JSON
+   export FASTWORKER_SERIALIZATION_FORMAT=JSON
    ```
 
 2. **Make Objects Picklable**
@@ -521,7 +521,7 @@ This guide covers common issues you might encounter when using FastQueue and how
 
    ```bash
    # Listen on all interfaces (0.0.0.0, not 127.0.0.1)
-   export FASTQUEUE_BASE_ADDRESS=tcp://0.0.0.0:5555
+   export FASTWORKER_BASE_ADDRESS=tcp://0.0.0.0:5555
    ```
 
 2. **Check Firewall Rules**
@@ -559,13 +559,13 @@ This guide covers common issues you might encounter when using FastQueue and how
    services:
      control-plane:
        environment:
-         FASTQUEUE_BASE_ADDRESS: tcp://0.0.0.0:5555
+         FASTWORKER_BASE_ADDRESS: tcp://0.0.0.0:5555
        ports:
          - "5550-5560:5550-5560"
 
      subworker:
        environment:
-         FASTQUEUE_CONTROL_PLANE_ADDRESS: tcp://control-plane:5555
+         FASTWORKER_CONTROL_PLANE_ADDRESS: tcp://control-plane:5555
    ```
 
 2. **Use Host Network Mode** (Linux only)
@@ -585,14 +585,14 @@ This guide covers common issues you might encounter when using FastQueue and how
 ```python
 import logging
 
-# Enable debug logging for FastQueue
+# Enable debug logging for FastWorker
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
 # Create logger
-logger = logging.getLogger("fastqueue")
+logger = logging.getLogger("fastworker")
 logger.setLevel(logging.DEBUG)
 ```
 
@@ -624,7 +624,7 @@ except Exception as e:
 ### Inspect Task Registry
 
 ```python
-from fastqueue.tasks.registry import task_registry
+from fastworker.tasks.registry import task_registry
 
 # List all registered tasks
 print("Registered tasks:")
@@ -733,8 +733,8 @@ If you're still experiencing issues:
    ```
 
 3. **Report Issues**
-   - GitHub Issues: https://github.com/dipankar/fastqueue/issues
-   - Include: FastQueue version, Python version, error messages, logs
+   - GitHub Issues: https://github.com/dipankar/fastworker/issues
+   - Include: FastWorker version, Python version, error messages, logs
 
 4. **Provide Minimal Reproduction**
    - Create minimal example that reproduces the issue

@@ -1,12 +1,12 @@
-"""Integration test for FastQueue."""
+"""Integration test for FastWorker."""
 import asyncio
 import threading
 import time
 import subprocess
 import signal
 import os
-from fastqueue.clients.client import Client
-from fastqueue.tasks.registry import task
+from fastworker.clients.client import Client
+from fastworker.tasks.registry import task
 
 # Define a test task
 @task
@@ -23,7 +23,7 @@ async def test_integration():
     discovery_process = subprocess.Popen([
         "python", "-c", """
 import asyncio
-from fastqueue.discovery.discovery import ServiceDiscovery
+from fastworker.discovery.discovery import ServiceDiscovery
 
 async def run_discovery():
     discovery = ServiceDiscovery("tcp://127.0.0.1:5560")
@@ -49,9 +49,9 @@ asyncio.run(run_discovery())
         "python", "-c", """
 import asyncio
 import sys
-sys.path.append('/home/dipankar/Github/fastqueue')
-from fastqueue.workers.worker import Worker
-from fastqueue.tasks.registry import task
+sys.path.append('/home/dipankar/Github/fastworker')
+from fastworker.workers.worker import Worker
+from fastworker.tasks.registry import task
 
 @task
 def add_numbers(x: int, y: int) -> int:

@@ -1,10 +1,10 @@
 # Limitations and Scope
 
-This document clarifies what FastQueue is designed for, where it excels, and where it may not be the right choice.
+This document clarifies what FastWorker is designed for, where it excels, and where it may not be the right choice.
 
-## What FastQueue Is
+## What FastWorker Is
 
-FastQueue is a **lightweight, brokerless task queue** for Python applications that need:
+FastWorker is a **lightweight, brokerless task queue** for Python applications that need:
 
 - **Simple distributed task processing** without complex infrastructure
 - **Zero external dependencies** (no Redis, RabbitMQ, etc.)
@@ -15,7 +15,7 @@ FastQueue is a **lightweight, brokerless task queue** for Python applications th
 
 ### Design Philosophy
 
-FastQueue is designed for:
+FastWorker is designed for:
 - **Simplicity over features**: Easy to understand and deploy
 - **Self-contained systems**: No external brokers or databases required
 - **Python-first**: Optimized for Python applications
@@ -60,21 +60,21 @@ Components to deploy, manage, and monitor:
 Total: 4-6+ separate services
 ```
 
-### FastQueue Deployment
+### FastWorker Deployment
 
-FastQueue requires **only Python workers**:
+FastWorker requires **only Python workers**:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Your Application                          │
 │  ┌──────────┐    ┌──────────────┐                           │
-│  │ FastAPI  │───▶│  FastQueue   │                           │
+│  │ FastAPI  │───▶│  FastWorker   │                           │
 │  │   App    │    │    Client    │                           │
 │  └──────────┘    └──────────────┘                           │
 │                          │                                   │
 │                          ▼                                   │
 │         ┌─────────────────────────────────────┐             │
-│         │  FastQueue Control Plane (Python)   │             │
+│         │  FastWorker Control Plane (Python)   │             │
 │         │  • Coordinates tasks                │             │
 │         │  • Caches results                   │             │
 │         │  • Manages workers                  │             │
@@ -82,7 +82,7 @@ FastQueue requires **only Python workers**:
 │                          │                                   │
 │                          ▼                                   │
 │         ┌─────────────────────────────────────┐             │
-│         │   FastQueue Subworkers (Python)     │             │
+│         │   FastWorker Subworkers (Python)     │             │
 │         │   • Process tasks                   │             │
 │         │   • Auto-discovered                 │             │
 │         └─────────────────────────────────────┘             │
@@ -90,15 +90,15 @@ FastQueue requires **only Python workers**:
 
 Components to deploy, manage, and monitor:
 ✓ Your application server
-✓ FastQueue control plane (Python process)
-✓ FastQueue subworkers (Python processes) - optional for scaling
+✓ FastWorker control plane (Python process)
+✓ FastWorker subworkers (Python processes) - optional for scaling
 
 Total: 2-3 Python services (no external dependencies!)
 ```
 
 ### The Difference
 
-| Aspect | Traditional (Celery + Redis) | FastQueue |
+| Aspect | Traditional (Celery + Redis) | FastWorker |
 |--------|------------------------------|-----------|
 | **Components** | 4-6+ services | 2-3 Python processes |
 | **External dependencies** | Redis/RabbitMQ required | None |
@@ -172,10 +172,10 @@ volumes:
 # Configuration complexity: High
 ```
 
-**FastQueue:**
+**FastWorker:**
 
 ```yaml
-# docker-compose.yml - FastQueue
+# docker-compose.yml - FastWorker
 version: '3.8'
 
 services:
@@ -185,26 +185,26 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - FASTQUEUE_DISCOVERY_ADDRESS=tcp://control-plane:5550
+      - FASTWORKER_DISCOVERY_ADDRESS=tcp://control-plane:5550
     depends_on:
       - control-plane
 
-  # FastQueue control plane (pure Python)
+  # FastWorker control plane (pure Python)
   control-plane:
     build: .
-    command: fastqueue control-plane --task-modules tasks
+    command: fastworker control-plane --task-modules tasks
     ports:
       - "5550-5560:5550-5560"
     environment:
-      - FASTQUEUE_BASE_ADDRESS=tcp://0.0.0.0:5555
+      - FASTWORKER_BASE_ADDRESS=tcp://0.0.0.0:5555
 
-  # Optional: FastQueue subworkers for scaling (pure Python)
+  # Optional: FastWorker subworkers for scaling (pure Python)
   subworker:
     build: .
-    command: fastqueue subworker --task-modules tasks
+    command: fastworker subworker --task-modules tasks
     environment:
-      - FASTQUEUE_CONTROL_PLANE_ADDRESS=tcp://control-plane:5555
-      - FASTQUEUE_BASE_ADDRESS=tcp://0.0.0.0:5561
+      - FASTWORKER_CONTROL_PLANE_ADDRESS=tcp://control-plane:5555
+      - FASTWORKER_BASE_ADDRESS=tcp://0.0.0.0:5561
     depends_on:
       - control-plane
     deploy:
@@ -304,16 +304,16 @@ data:
 # Total pods: 6+ (web×2, redis×1, celery×3, flower×1)
 ```
 
-**FastQueue:**
+**FastWorker:**
 
 ```yaml
-# FastQueue Kubernetes - Simpler
+# FastWorker Kubernetes - Simpler
 
 # 1. Control Plane Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fastqueue-control-plane
+  name: fastworker-control-plane
 spec:
   replicas: 1
   template:
@@ -321,7 +321,7 @@ spec:
       containers:
       - name: control-plane
         image: myapp:latest
-        command: ["fastqueue", "control-plane", "--task-modules", "tasks"]
+        command: ["fastworker", "control-plane", "--task-modules", "tasks"]
         ports:
         - containerPort: 5550
         - containerPort: 5555
@@ -342,7 +342,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fastqueue-subworker
+  name: fastworker-subworker
 spec:
   replicas: 3
   template:
@@ -350,9 +350,9 @@ spec:
       containers:
       - name: subworker
         image: myapp:latest
-        command: ["fastqueue", "subworker", "--task-modules", "tasks"]
+        command: ["fastworker", "subworker", "--task-modules", "tasks"]
         env:
-        - name: FASTQUEUE_CONTROL_PLANE_ADDRESS
+        - name: FASTWORKER_CONTROL_PLANE_ADDRESS
           value: tcp://control-plane:5555
 ---
 # 4. Web App Deployment
@@ -368,7 +368,7 @@ spec:
       - name: web
         image: myapp:latest
         env:
-        - name: FASTQUEUE_DISCOVERY_ADDRESS
+        - name: FASTWORKER_DISCOVERY_ADDRESS
           value: tcp://control-plane:5550
 
 # Total manifests: 4
@@ -402,7 +402,7 @@ You need to know:
 • Multiple service monitoring
 ```
 
-**FastQueue:**
+**FastWorker:**
 ```
 You need to know:
 • Python process management
@@ -419,7 +419,7 @@ You need to know:
 - Result backend down → can't retrieve results
 - Celery version mismatch → incompatibility issues
 
-**FastQueue failure scenarios:**
+**FastWorker failure scenarios:**
 - Control plane crashes → tasks in queue lost (restart recovers)
 - Subworker crashes → control plane redistributes tasks
 - Network issue → automatic reconnection built-in
@@ -439,7 +439,7 @@ Monitor:
 ✗ Network connectivity between services
 ```
 
-**FastQueue monitoring requirements:**
+**FastWorker monitoring requirements:**
 ```
 Monitor:
 ✓ Control plane Python process health
@@ -460,10 +460,10 @@ Monitor:
 ✗ Multiple services to patch/update
 ```
 
-**FastQueue security concerns:**
+**FastWorker security concerns:**
 ```
 ✓ Python process security
-✓ Network firewall for FastQueue ports
+✓ Network firewall for FastWorker ports
 ✓ Standard Python security practices
 ✓ Single codebase to patch/update
 ```
@@ -480,7 +480,7 @@ Monitor:
 • Backup storage for Redis snapshots
 ```
 
-**FastQueue costs:**
+**FastWorker costs:**
 ```
 • Python worker resources only
 • No external service costs
@@ -513,17 +513,17 @@ celery -A tasks flower
 # Required: 3-4 terminals, Docker, Redis knowledge
 ```
 
-**FastQueue:**
+**FastWorker:**
 
 ```bash
 # Terminal 1: Start control plane
-fastqueue control-plane --task-modules tasks
+fastworker control-plane --task-modules tasks
 
 # Terminal 2: Start your app
 uvicorn main:app --reload
 
 # Optional Terminal 3: Add subworker for testing scaling
-fastqueue subworker --worker-id sw1 --task-modules tasks
+fastworker subworker --worker-id sw1 --task-modules tasks
 
 # Required: 2 terminals, no Docker needed!
 ```
@@ -548,23 +548,23 @@ def test_task(celery_app):
     # Need Redis running for integration tests
 ```
 
-**FastQueue:**
+**FastWorker:**
 ```python
 # tests/test_tasks.py
 import pytest
-from fastqueue import Client
+from fastworker import Client
 
 @pytest.fixture
-async def fastqueue_client():
+async def fastworker_client():
     # No external dependencies!
     client = Client()
     await client.start()
     yield client
     client.stop()
 
-async def test_task(fastqueue_client):
+async def test_task(fastworker_client):
     # Simple test, no Redis needed
-    result = await fastqueue_client.delay("my_task", arg1, arg2)
+    result = await fastworker_client.delay("my_task", arg1, arg2)
 ```
 
 ---
@@ -593,7 +593,7 @@ Languages/Runtimes: 2 (Python, Redis)
 Ops Complexity: High
 ```
 
-### After: FastQueue
+### After: FastWorker
 
 ```
 ┌─────────────┐
@@ -602,7 +602,7 @@ Ops Complexity: High
       │
       ▼
 ┌─────────────┐
-│  FastQueue  │ ← Pure Python
+│  FastWorker  │ ← Pure Python
 │Control Plane│
 └─────┬───────┘
       │
@@ -637,7 +637,7 @@ Ops Complexity: Low
 
 ---
 
-## Where FastQueue Excels
+## Where FastWorker Excels
 
 ### ✅ Ideal Use Cases
 
@@ -721,7 +721,7 @@ await client.delay_with_callback(
 
 ## Limitations and Constraints
 
-### ❌ Where FastQueue May Not Be Suitable
+### ❌ Where FastWorker May Not Be Suitable
 
 #### 1. Extreme Scale Requirements
 
@@ -730,7 +730,7 @@ await client.delay_with_callback(
 - **Hundreds or thousands of workers**
 - **Global distribution across multiple datacenters**
 
-**Why:** FastQueue uses direct peer-to-peer connections, which don't scale as efficiently as broker-based systems at extreme scale.
+**Why:** FastWorker uses direct peer-to-peer connections, which don't scale as efficiently as broker-based systems at extreme scale.
 
 **Alternative:** Use RabbitMQ, Apache Kafka, or cloud-based queues (AWS SQS, Google Cloud Tasks).
 
@@ -752,7 +752,7 @@ await client.delay_with_callback(
 
 #### 3. Multi-Language Support
 
-**Limitation:** FastQueue is **Python-only**. Workers and clients must be Python applications.
+**Limitation:** FastWorker is **Python-only**. Workers and clients must be Python applications.
 
 **Not suitable for:**
 - Polyglot microservices (Python, Go, Java, Node.js mixed)
@@ -794,7 +794,7 @@ await client.delay_with_callback(
 
 #### 6. Exactly-Once Delivery Guarantees
 
-**Limitation:** FastQueue provides **at-most-once** delivery semantics.
+**Limitation:** FastWorker provides **at-most-once** delivery semantics.
 
 - If a worker crashes during task execution, the task may be lost
 - No automatic retry on worker failure
@@ -888,7 +888,7 @@ def my_task(data):
 - SaaS platforms with strict tenant isolation
 - Multi-tenant applications with resource limits
 
-**Alternative:** Deploy separate FastQueue instances per tenant, or use broker-based solutions with virtual hosts (RabbitMQ).
+**Alternative:** Deploy separate FastWorker instances per tenant, or use broker-based solutions with virtual hosts (RabbitMQ).
 
 ---
 
@@ -896,7 +896,7 @@ def my_task(data):
 
 ### Network Requirements
 
-**FastQueue requires:**
+**FastWorker requires:**
 - Low-latency network between workers and control plane
 - Direct connectivity (no NAT traversal built-in)
 - Multiple ports open (one per priority level)
@@ -969,9 +969,9 @@ def my_task(data):
 
 ## Comparison with Alternatives
 
-### FastQueue vs Celery
+### FastWorker vs Celery
 
-| Feature | FastQueue | Celery |
+| Feature | FastWorker | Celery |
 |---------|-----------|--------|
 | External dependencies | None | Redis/RabbitMQ required |
 | Setup complexity | Very low | Medium |
@@ -983,9 +983,9 @@ def my_task(data):
 | Multi-datacenter | Limited | Good with proper broker setup |
 | **Best for** | Simple background tasks | Complex workflows, high scale |
 
-### FastQueue vs RabbitMQ
+### FastWorker vs RabbitMQ
 
-| Feature | FastQueue | RabbitMQ |
+| Feature | FastWorker | RabbitMQ |
 |---------|-----------|----------|
 | Setup complexity | Very low | Medium-High |
 | Language support | Python only | Multi-language |
@@ -995,9 +995,9 @@ def my_task(data):
 | Operational overhead | Low | Medium-High |
 | **Best for** | Python applications, simple setups | Multi-language, mission-critical |
 
-### FastQueue vs Cloud Queues (SQS, Cloud Tasks)
+### FastWorker vs Cloud Queues (SQS, Cloud Tasks)
 
-| Feature | FastQueue | Cloud Queues |
+| Feature | FastWorker | Cloud Queues |
 |---------|-----------|--------------|
 | Cost | Free (self-hosted) | Pay per request |
 | Setup | Simple | Very simple |
@@ -1007,9 +1007,9 @@ def my_task(data):
 | Multi-region | Manual | Built-in |
 | **Best for** | Self-hosted, cost-sensitive | Cloud-native, unlimited scale |
 
-### FastQueue vs Apache Kafka
+### FastWorker vs Apache Kafka
 
-| Feature | FastQueue | Kafka |
+| Feature | FastWorker | Kafka |
 |---------|-----------|-------|
 | Setup complexity | Very low | High |
 | Throughput | Moderate | Very high |
@@ -1021,9 +1021,9 @@ def my_task(data):
 
 ---
 
-## When to Choose FastQueue
+## When to Choose FastWorker
 
-### ✅ Choose FastQueue if:
+### ✅ Choose FastWorker if:
 
 1. **You want zero external dependencies**
    - No Redis/RabbitMQ to maintain
@@ -1090,7 +1090,7 @@ def my_task(data):
 
 ## Migration Considerations
 
-### Moving FROM FastQueue
+### Moving FROM FastWorker
 
 **When to migrate:**
 - Outgrowing scale limits (>10K tasks/min)
@@ -1101,10 +1101,10 @@ def my_task(data):
 **Migration path:**
 1. Implement task persistence layer
 2. Gradually migrate high-volume tasks to alternative queue
-3. Keep FastQueue for low-volume, simple tasks
+3. Keep FastWorker for low-volume, simple tasks
 4. Eventually fully migrate when alternative is stable
 
-### Moving TO FastQueue
+### Moving TO FastWorker
 
 **When to simplify:**
 - Over-engineered with Celery for simple use case
@@ -1113,7 +1113,7 @@ def my_task(data):
 - Moderate task volume
 
 **Migration path:**
-1. Start with new tasks on FastQueue
+1. Start with new tasks on FastWorker
 2. Keep existing Celery/RabbitMQ for complex workflows
 3. Gradually migrate simple tasks
 4. Retire complex infrastructure when ready
@@ -1122,7 +1122,7 @@ def my_task(data):
 
 ## Anti-Patterns
 
-### ❌ What NOT to do with FastQueue
+### ❌ What NOT to do with FastWorker
 
 #### 1. Don't Use for Critical Financial Transactions
 
@@ -1183,7 +1183,7 @@ await client.delay("task1")
 await client.delay("task2")  # Might execute before task1!
 ```
 
-**Better:** Use task chains/workflows (not built into FastQueue) or explicit dependencies.
+**Better:** Use task chains/workflows (not built into FastWorker) or explicit dependencies.
 
 ---
 
@@ -1205,7 +1205,7 @@ These are potential future enhancements, not guarantees.
 
 ## Summary
 
-### FastQueue is excellent for:
+### FastWorker is excellent for:
 - 🎯 Simple background task processing in web applications
 - 🎯 Python-only stacks
 - 🎯 Development and testing environments
@@ -1214,7 +1214,7 @@ These are potential future enhancements, not guarantees.
 - 🎯 Priority-based task processing
 - 🎯 Rapid prototyping and iteration
 
-### FastQueue is NOT suitable for:
+### FastWorker is NOT suitable for:
 - ❌ Extreme scale (100K+ tasks/min)
 - ❌ Multi-language environments
 - ❌ Mission-critical systems requiring persistence
@@ -1225,7 +1225,7 @@ These are potential future enhancements, not guarantees.
 
 ### The Right Tool for the Right Job
 
-FastQueue fills a specific niche: **lightweight, zero-dependency task queues for Python applications at moderate scale**. It's designed to be simple, fast to deploy, and easy to understand.
+FastWorker fills a specific niche: **lightweight, zero-dependency task queues for Python applications at moderate scale**. It's designed to be simple, fast to deploy, and easy to understand.
 
 If your requirements exceed these boundaries, consider more feature-rich alternatives like Celery, RabbitMQ, or cloud-based queues. There's no shame in choosing the right tool for your specific needs.
 
@@ -1233,7 +1233,7 @@ If your requirements exceed these boundaries, consider more feature-rich alterna
 
 ## See Also
 
-- [Architecture Overview](index.md) - Understanding FastQueue's design
+- [Architecture Overview](index.md) - Understanding FastWorker's design
 - [Configuration](configuration.md) - Tuning for your use case
 - [API Reference](api.md) - Complete API documentation
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions

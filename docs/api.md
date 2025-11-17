@@ -1,6 +1,6 @@
 # API Reference
 
-Complete API documentation for FastQueue components.
+Complete API documentation for FastWorker components.
 
 **See Also:**
 - [Client Guide](clients.md) - Client usage examples
@@ -15,7 +15,7 @@ Complete API documentation for FastQueue components.
 Registers a function as a task that can be executed by workers.
 
 ```python
-from fastqueue import task
+from fastworker import task
 
 @task
 def my_function(x: int, y: int) -> int:

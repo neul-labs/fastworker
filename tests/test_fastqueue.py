@@ -1,7 +1,7 @@
-"""Test cases for FastQueue."""
+"""Test cases for FastWorker."""
 import pytest
-from fastqueue.tasks.registry import task_registry, task
-from fastqueue.tasks.models import Task, TaskPriority
+from fastworker.tasks.registry import task_registry, task
+from fastworker.tasks.models import Task, TaskPriority
 
 @pytest.fixture
 def sample_task_obj():

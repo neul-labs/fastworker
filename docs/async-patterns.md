@@ -1,6 +1,6 @@
 # Async Patterns: Blocking vs Non-Blocking
 
-FastQueue provides both **blocking** and **non-blocking** task submission patterns. Understanding the difference is crucial for building responsive applications.
+FastWorker provides both **blocking** and **non-blocking** task submission patterns. Understanding the difference is crucial for building responsive applications.
 
 ## Quick Comparison
 
@@ -19,8 +19,8 @@ Submits a task and **waits** for the result before continuing.
 ### Usage
 
 ```python
-from fastqueue import Client
-from fastqueue.tasks.models import TaskPriority
+from fastworker import Client
+from fastworker.tasks.models import TaskPriority
 
 client = Client()
 await client.start()
@@ -79,7 +79,7 @@ Submits a task and **returns immediately** with a task ID. The task executes in 
 ### Usage
 
 ```python
-from fastqueue import Client
+from fastworker import Client
 
 client = Client()
 await client.start()
@@ -269,7 +269,7 @@ duration = time.time() - start
 
 ```python
 from fastapi import FastAPI, BackgroundTasks
-from fastqueue import Client
+from fastworker import Client
 
 app = FastAPI()
 client = Client()

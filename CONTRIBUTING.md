@@ -1,20 +1,20 @@
-# Contributing to FastQueue
+# Contributing to FastWorker
 
-Thank you for your interest in contributing to FastQueue!
+Thank you for your interest in contributing to FastWorker!
 
 ## Development Setup
 
 1. **Clone and Install**
    ```bash
-   git clone https://github.com/dipankar/fastqueue.git
-   cd fastqueue
+   git clone https://github.com/dipankar/fastworker.git
+   cd fastworker
    poetry install
    ```
 
 2. **Verify Installation**
    ```bash
    poetry run pytest
-   poetry run fastqueue --help
+   poetry run fastworker --help
    ```
 
 ## Development Workflow

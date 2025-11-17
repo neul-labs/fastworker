@@ -1,4 +1,4 @@
-# FastQueue Documentation
+# FastWorker Documentation
 
 A brokerless task queue for Python applications with automatic worker discovery and priority handling.
 
@@ -6,14 +6,14 @@ A brokerless task queue for Python applications with automatic worker discovery 
 
 ## Overview
 
-FastQueue eliminates the complexity of traditional task queues by removing the need for message brokers like Redis or RabbitMQ.
+FastWorker eliminates the complexity of traditional task queues by removing the need for message brokers like Redis or RabbitMQ.
 
 ### Deployment Simplicity
 
 **Traditional task queues require 4-6+ services:**
 - Your app + Redis broker + Workers + Result backend + Monitoring + HA components
 
-**FastQueue requires 2-3 Python processes:**
+**FastWorker requires 2-3 Python processes:**
 - Your app + Control plane + Workers (optional)
 
 That's it. No external dependencies to deploy, manage, or secure.
@@ -36,22 +36,22 @@ The system uses a **Control Plane Architecture** where:
 
 ## Quick Start
 
-1. **Install FastQueue**
-   pip install fastqueue
+1. **Install FastWorker**
+   pip install fastworker
    
 2. **Define Tasks**hon
    # mytasks.py
-   from fastqueue import task
+   from fastworker import task
 
    @task
    def process_data(data: dict):
        return {"processed": data}
    3. **Start Control Plane**
-   fastqueue control-plane --task-modules mytasks
+   fastworker control-plane --task-modules mytasks
    4. **Start Subworkers (Optional)**
-   fastqueue subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
+   fastworker subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
    5. **Submit Tasks**thon
-   from fastqueue import Client
+   from fastworker import Client
 
    client = Client()
    await client.start()
@@ -74,13 +74,13 @@ The system uses a **Control Plane Architecture** where:
 - [**NNG Patterns**](nng_patterns.md) - Network communication details
 
 ### Resources
-- [**Limitations & Scope**](limitations.md) - What FastQueue is (and isn't), use cases, and when to use alternatives
+- [**Limitations & Scope**](limitations.md) - What FastWorker is (and isn't), use cases, and when to use alternatives
 - [**OpenTelemetry Integration**](telemetry.md) - Distributed tracing and metrics with OpenTelemetry
 - [**Troubleshooting**](troubleshooting.md) - Common issues and solutions
 
 ## Architecture
 
-FastQueue uses a **Control Plane Architecture**:
+FastWorker uses a **Control Plane Architecture**:
 
 1. **Control Plane Worker** coordinates all task distribution
 2. **Subworkers** register with control plane and receive tasks
@@ -111,5 +111,5 @@ FastQueue uses a **Control Plane Architecture**:
 
 ## Support
 
-- [GitHub Issues](https://github.com/dipankar/fastqueue/issues) - Bug reports and feature requests
+- [GitHub Issues](https://github.com/dipankar/fastworker/issues) - Bug reports and feature requests
 - [Contributing Guide](../CONTRIBUTING.md) - Development guidelines

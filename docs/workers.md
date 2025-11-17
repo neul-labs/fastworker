@@ -8,7 +8,7 @@
 
 ## Architecture Overview
 
-FastQueue uses a **Control Plane Architecture**:
+FastWorker uses a **Control Plane Architecture**:
 
 - **Control Plane Worker**: Central coordinator that manages subworkers and processes tasks
 - **Subworkers**: Additional workers that register with the control plane for load distribution
@@ -17,7 +17,7 @@ FastQueue uses a **Control Plane Architecture**:
 
 The control plane is the central coordinator and should be started first:
 
-fastqueue control-plane --worker-id control-plane --task-modules mytasks### Control Plane Parameters
+fastworker control-plane --worker-id control-plane --task-modules mytasks### Control Plane Parameters
 
 - `--worker-id` (optional): Control plane identifier (default: "control-plane")
 - `--base-address` (optional): Base address (default: `tcp://127.0.0.1:5555`)
@@ -30,7 +30,7 @@ fastqueue control-plane --worker-id control-plane --task-modules mytasks### Cont
 ### Example
 
 # Start control plane with custom cache settings
-fastqueue control-plane \
+fastworker control-plane \
   --worker-id control-plane \
   --result-cache-size 20000 \
   --result-cache-ttl 7200 \
@@ -38,7 +38,7 @@ fastqueue control-plane \
 
 Subworkers register with the control plane and receive distributed tasks:
 
-fastqueue subworker \
+fastworker subworker \
   --worker-id subworker1 \
   --control-plane-address tcp://127.0.0.1:5555 \
   --base-address tcp://127.0.0.1:5561 \
@@ -55,13 +55,13 @@ fastqueue subworker \
 Each subworker needs its own port range. Use non-overlapping ports:
 
 # Subworker 1: ports 5561-5564
-fastqueue subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
+fastworker subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
 
 # Subworker 2: ports 5565-5568
-fastqueue subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
+fastworker subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
 
 # Subworker 3: ports 5569-5572
-fastqueue subworker --worker-id sw3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules mytasks## Task Processing
+fastworker subworker --worker-id sw3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules mytasks## Task Processing
 
 ### Priority Order
 
@@ -104,13 +104,13 @@ Workers handle shutdown signals gracefully:
 Simply start additional subworkers - no configuration changes needed:
 
 # Terminal 1: Control plane
-fastqueue control-plane --task-modules mytasks
+fastworker control-plane --task-modules mytasks
 
 # Terminal 2: Subworker 1
-fastqueue subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
+fastworker subworker --worker-id sw1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
 
 # Terminal 3: Subworker 2
-fastqueue subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasksTasks automatically distribute across all available subworkers.
+fastworker subworker --worker-id sw2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasksTasks automatically distribute across all available subworkers.
 
 ## Health Monitoring
 

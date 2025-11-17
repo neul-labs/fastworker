@@ -1,12 +1,12 @@
-"""Test cases for FastQueue callbacks."""
+"""Test cases for FastWorker callbacks."""
 import asyncio
 import pytest
-from fastqueue.tasks.models import Task, TaskPriority, CallbackInfo
-from fastqueue.clients.client import Client
-from fastqueue.workers.worker import Worker
-from fastqueue.patterns.nng_patterns import PairPattern
-from fastqueue.tasks.registry import task
-from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+from fastworker.tasks.models import Task, TaskPriority, CallbackInfo
+from fastworker.clients.client import Client
+from fastworker.workers.worker import Worker
+from fastworker.patterns.nng_patterns import PairPattern
+from fastworker.tasks.registry import task
+from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
 
 # Define a test task
 @task

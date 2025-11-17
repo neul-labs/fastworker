@@ -1,16 +1,16 @@
 #!/bin/bash
-# FastQueue Example Startup Script
+# FastWorker Example Startup Script
 
-echo "Starting FastQueue Example"
+echo "Starting FastWorker Example"
 
 # Create a virtual environment if it doesn't exist
-if [ ! -d "fastqueue-env" ]; then
+if [ ! -d "fastworker-env" ]; then
     echo "Creating virtual environment..."
-    python3 -m venv fastqueue-env
-    source fastqueue-env/bin/activate
+    python3 -m venv fastworker-env
+    source fastworker-env/bin/activate
     pip install poetry
 else
-    source fastqueue-env/bin/activate
+    source fastworker-env/bin/activate
 fi
 
 # Install dependencies
@@ -19,7 +19,7 @@ poetry install
 
 # Create example task file
 cat > mytasks.py << 'EOF'
-from fastqueue import task
+from fastworker import task
 import asyncio
 import time
 
@@ -55,32 +55,32 @@ EOF
 echo "Created example task file: mytasks.py"
 echo ""
 echo "=========================================="
-echo "FastQueue Control Plane Architecture"
+echo "FastWorker Control Plane Architecture"
 echo "=========================================="
 echo ""
 echo "To run the example:"
 echo ""
 echo "1. Start the Control Plane Worker (in Terminal 1):"
-echo "   fastqueue control-plane --worker-id control-plane --base-address tcp://127.0.0.1:5555 --task-modules mytasks"
+echo "   fastworker control-plane --worker-id control-plane --base-address tcp://127.0.0.1:5555 --task-modules mytasks"
 echo ""
 echo "2. Start Subworkers in separate terminals:"
 echo "   Terminal 2:"
-echo "   fastqueue subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks"
+echo "   fastworker subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks"
 echo ""
 echo "   Terminal 3:"
-echo "   fastqueue subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks"
+echo "   fastworker subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks"
 echo ""
 echo "   Terminal 4 (optional - more subworkers for scaling):"
-echo "   fastqueue subworker --worker-id subworker3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules mytasks"
+echo "   fastworker subworker --worker-id subworker3 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5569 --task-modules mytasks"
 echo ""
 echo "3. Submit tasks in another terminal (clients connect to control plane):"
-echo "   fastqueue submit --task-name add --args 5 3"
-echo "   fastqueue submit --task-name multiply --args 4 7 --priority high"
-echo "   fastqueue submit --task-name async_task --args 3 --priority critical"
-echo "   fastqueue submit --task-name cpu_intensive_task --args 1000000 --priority normal"
+echo "   fastworker submit --task-name add --args 5 3"
+echo "   fastworker submit --task-name multiply --args 4 7 --priority high"
+echo "   fastworker submit --task-name async_task --args 3 --priority critical"
+echo "   fastworker submit --task-name cpu_intensive_task --args 1000000 --priority normal"
 echo ""
 echo "4. List available tasks:"
-echo "   fastqueue list --task-modules mytasks"
+echo "   fastworker list --task-modules mytasks"
 echo ""
 echo "=========================================="
 echo "Architecture Notes:"

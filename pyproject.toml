@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "fastqueue"
+name = "fastworker"
 version = "0.1.0"
 description = "A brokerless task queue using nng patterns"
 authors = ["Dipankar Sarkar <me@dipankar.name>"]
 license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/dipankar/fastqueue"
-repository = "https://github.com/dipankar/fastqueue"
-documentation = "https://github.com/dipankar/fastqueue/blob/main/docs/index.md"
+homepage = "https://github.com/dipankar/fastworker"
+repository = "https://github.com/dipankar/fastworker"
+documentation = "https://github.com/dipankar/fastworker/blob/main/docs/index.md"
 keywords = ["task-queue", "celery", "nng", "brokerless", "async", "fastapi"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -34,7 +34,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-fastqueue = "fastqueue.cli:main"
+fastworker = "fastworker.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

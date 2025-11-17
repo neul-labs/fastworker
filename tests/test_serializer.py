@@ -1,8 +1,8 @@
-"""Test cases for FastQueue serializer."""
+"""Test cases for FastWorker serializer."""
 import pytest
 import json
 import pickle
-from fastqueue.tasks.serializer import TaskSerializer, SerializationFormat
+from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
 
 
 def test_json_serialization():

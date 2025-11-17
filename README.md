@@ -1,13 +1,13 @@
-# FastQueue
+# FastWorker
 
 A brokerless task queue for Python applications with automatic worker discovery and priority handling.
 
 **No Redis. No RabbitMQ. Just Python.**
 
-[![PyPI version](https://badge.fury.io/py/fastqueue.svg)](https://badge.fury.io/py/fastqueue)
+[![PyPI version](https://badge.fury.io/py/fastworker.svg)](https://badge.fury.io/py/fastworker)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Why FastQueue?
+## Why FastWorker?
 
 Traditional task queues (Celery + Redis) require deploying and managing **4-6+ separate services**:
 - Your application
@@ -17,10 +17,10 @@ Traditional task queues (Celery + Redis) require deploying and managing **4-6+ s
 - Optional: Flower monitoring
 - Optional: Redis Sentinel for HA
 
-**FastQueue requires just 2-3 Python processes:**
+**FastWorker requires just 2-3 Python processes:**
 - Your application
-- FastQueue control plane
-- FastQueue workers (optional, for scaling)
+- FastWorker control plane
+- FastWorker workers (optional, for scaling)
 
 **That's it.** No external dependencies. No Redis to configure, monitor, backup, or secure. Just Python.
 
@@ -37,12 +37,12 @@ Traditional task queues (Celery + Redis) require deploying and managing **4-6+ s
 - **OpenTelemetry Support** - Optional distributed tracing and metrics for observability
 - **Zero Configuration** - Works out of the box with sensible defaults
 
-**Note:** FastQueue is designed for moderate-scale Python applications (1K-10K tasks/min). For extreme scale, multi-language support, or complex workflows, see [Limitations & Scope](docs/limitations.md).
+**Note:** FastWorker is designed for moderate-scale Python applications (1K-10K tasks/min). For extreme scale, multi-language support, or complex workflows, see [Limitations & Scope](docs/limitations.md).
 
 ## Installation
 
 ```bash
-pip install fastqueue
+pip install fastworker
 ```
 
 ## Quick Start
@@ -51,7 +51,7 @@ pip install fastqueue
 
 ```python
 # mytasks.py
-from fastqueue import task
+from fastworker import task
 
 @task
 def add(x: int, y: int) -> int:
@@ -68,42 +68,42 @@ def multiply(x: int, y: int) -> int:
 
 ```bash
 # Terminal 1 - Start the control plane (coordinates and also processes tasks)
-fastqueue control-plane --worker-id control-plane --task-modules mytasks
+fastworker control-plane --worker-id control-plane --task-modules mytasks
 ```
 
 ### 3. Start Subworkers (Optional - for scaling)
 
 ```bash
 # Terminal 2 - Start subworker 1
-fastqueue subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
+fastworker subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5561 --task-modules mytasks
 
 # Terminal 3 - Start subworker 2 (optional)
-fastqueue subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
+fastworker subworker --worker-id subworker2 --control-plane-address tcp://127.0.0.1:5555 --base-address tcp://127.0.0.1:5565 --task-modules mytasks
 ```
 
 ### 4. Submit Tasks
 
 **Blocking mode (wait for result):**
 ```bash
-fastqueue submit --task-name add --args 5 3
+fastworker submit --task-name add --args 5 3
 ```
 
 **Non-blocking mode (get task ID immediately):**
 ```bash
-fastqueue submit --task-name add --args 5 3 --non-blocking
+fastworker submit --task-name add --args 5 3 --non-blocking
 # Returns: Task ID: <uuid>
 ```
 
 **Check task status:**
 ```bash
-fastqueue status --task-id <uuid>
+fastworker status --task-id <uuid>
 ```
 
 ### 5. Using Python Client
 
 **Non-blocking (recommended):**
 ```python
-from fastqueue import Client
+from fastworker import Client
 import asyncio
 
 async def main():
@@ -133,7 +133,7 @@ print(f"Result: {result.result}")
 
 ## Architecture
 
-FastQueue uses a **Control Plane Architecture**:
+FastWorker uses a **Control Plane Architecture**:
 
 - **Control Plane Worker**: Central coordinator that manages subworkers and also processes tasks
 - **Subworkers**: Additional workers that register with the control plane for load distribution
@@ -151,28 +151,28 @@ FastQueue uses a **Control Plane Architecture**:
 
 ```bash
 # Start control plane
-fastqueue control-plane --worker-id control-plane --task-modules mytasks
+fastworker control-plane --worker-id control-plane --task-modules mytasks
 
 # Start subworker
-fastqueue subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --task-modules mytasks
+fastworker subworker --worker-id subworker1 --control-plane-address tcp://127.0.0.1:5555 --task-modules mytasks
 
 # Submit task (blocking)
-fastqueue submit --task-name add --args 5 3
+fastworker submit --task-name add --args 5 3
 
 # Submit task (non-blocking)
-fastqueue submit --task-name add --args 5 3 --non-blocking
+fastworker submit --task-name add --args 5 3 --non-blocking
 
 # Check task status
-fastqueue status --task-id <uuid>
+fastworker status --task-id <uuid>
 
 # List available tasks
-fastqueue list --task-modules mytasks
+fastworker list --task-modules mytasks
 ```
 
 ## Priority Handling
 
 ```python
-from fastqueue.tasks.models import TaskPriority
+from fastworker.tasks.models import TaskPriority
 
 # Submit with priority
 await client.delay("critical_task", priority=TaskPriority.CRITICAL)
@@ -192,7 +192,7 @@ The control plane maintains a result cache with:
 ### Control Plane
 
 ```bash
-fastqueue control-plane \
+fastworker control-plane \
   --worker-id control-plane \
   --base-address tcp://127.0.0.1:5555 \
   --discovery-address tcp://127.0.0.1:5550 \
@@ -204,7 +204,7 @@ fastqueue control-plane \
 ### Subworker
 
 ```bash
-fastqueue subworker \
+fastworker subworker \
   --worker-id subworker1 \
   --control-plane-address tcp://127.0.0.1:5555 \
   --base-address tcp://127.0.0.1:5561 \
@@ -225,8 +225,8 @@ client = Client(
 
 ```bash
 # Clone repository
-git clone https://github.com/dipankar/fastqueue.git
-cd fastqueue
+git clone https://github.com/dipankar/fastworker.git
+cd fastworker
 
 # Install dependencies
 poetry install
@@ -253,7 +253,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 For detailed documentation, see:
 
 - [Documentation Index](docs/index.md) - Complete documentation
-- [Limitations & Scope](docs/limitations.md) - **Start here** - What FastQueue is and when to use it
+- [Limitations & Scope](docs/limitations.md) - **Start here** - What FastWorker is and when to use it
 - [API Reference](docs/api.md) - Full API documentation
 - [FastAPI Integration](docs/fastapi.md) - Web framework integration
 - [OpenTelemetry Integration](docs/telemetry.md) - Distributed tracing and metrics
