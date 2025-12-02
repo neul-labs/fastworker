@@ -157,7 +157,7 @@ def start_control_plane(args):
     # Load task modules
     if args.task_modules:
         load_tasks(args.task_modules)
-    
+
     # Create and start control plane worker
     control_plane = ControlPlaneWorker(
         worker_id=args.worker_id or "control-plane",
@@ -165,14 +165,19 @@ def start_control_plane(args):
         discovery_address=args.discovery_address,
         subworker_management_port=args.subworker_port,
         result_cache_max_size=args.result_cache_size,
-        result_cache_ttl_seconds=args.result_cache_ttl
+        result_cache_ttl_seconds=args.result_cache_ttl,
+        gui_enabled=not args.no_gui,
+        gui_host=args.gui_host,
+        gui_port=args.gui_port
     )
-    
+
     print(f"Starting control plane worker {control_plane.worker_id}")
     print(f"Base address: {args.base_address}")
     print(f"Discovery address: {args.discovery_address}")
+    if not args.no_gui:
+        print(f"Management GUI: http://{args.gui_host}:{args.gui_port}")
     print("Press Ctrl+C to stop")
-    
+
     try:
         asyncio.run(control_plane.start())
     except KeyboardInterrupt:
@@ -291,7 +296,7 @@ def main():
     # Control plane command
     control_plane_parser = subparsers.add_parser("control-plane", help="Start control plane worker")
     control_plane_parser.add_argument("--worker-id", help="Control plane worker ID (default: control-plane)")
-    control_plane_parser.add_argument("--base-address", default="tcp://127.0.0.1:5555", 
+    control_plane_parser.add_argument("--base-address", default="tcp://127.0.0.1:5555",
                               help="Base address (default: tcp://127.0.0.1:5555)")
     control_plane_parser.add_argument("--discovery-address", default="tcp://127.0.0.1:5550",
                               help="Discovery address (default: tcp://127.0.0.1:5550)")
@@ -301,8 +306,15 @@ def main():
                               help="Maximum number of results to cache (default: 10000)")
     control_plane_parser.add_argument("--result-cache-ttl", type=int, default=3600,
                               help="Result cache TTL in seconds (default: 3600 = 1 hour)")
-    control_plane_parser.add_argument("--task-modules", nargs="*", 
+    control_plane_parser.add_argument("--task-modules", nargs="*",
                               help="Task modules to load")
+    # GUI options
+    control_plane_parser.add_argument("--no-gui", action="store_true",
+                              help="Disable management GUI")
+    control_plane_parser.add_argument("--gui-host", default="127.0.0.1",
+                              help="Management GUI host (default: 127.0.0.1)")
+    control_plane_parser.add_argument("--gui-port", type=int, default=8080,
+                              help="Management GUI port (default: 8080)")
     control_plane_parser.set_defaults(func=start_control_plane)
     
     # Subworker command

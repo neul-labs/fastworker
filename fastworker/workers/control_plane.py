@@ -3,13 +3,13 @@ import asyncio
 import logging
 import os
 import signal
-from typing import Dict, List, Optional, Callable, Set
+from typing import Dict, List, Optional, Callable, Set, TYPE_CHECKING
 from datetime import datetime, timedelta
 from collections import deque, OrderedDict
 from urllib.parse import urlparse
 
 from fastworker.patterns.nng_patterns import (
-    ReqRepPattern, 
+    ReqRepPattern,
     BusPattern,
     PairPattern,
     SurveyorRespondentPattern
@@ -18,6 +18,9 @@ from fastworker.tasks.registry import task_registry
 from fastworker.tasks.models import Task, TaskResult, TaskStatus, TaskPriority, CallbackInfo
 from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
 from fastworker.workers.worker import Worker
+
+if TYPE_CHECKING:
+    from fastworker.gui.server import ManagementServer
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +35,9 @@ class ControlPlaneWorker(Worker):
     - FASTWORKER_SUBWORKER_PORT: Subworker management port (default: 5560)
     - FASTWORKER_RESULT_CACHE_SIZE: Maximum cached results (default: 10000)
     - FASTWORKER_RESULT_CACHE_TTL: Cache TTL in seconds (default: 3600)
+    - FASTWORKER_GUI_ENABLED: Enable management GUI (default: true)
+    - FASTWORKER_GUI_HOST: GUI server host (default: 127.0.0.1)
+    - FASTWORKER_GUI_PORT: GUI server port (default: 8080)
     """
 
     def __init__(self,
@@ -41,7 +47,10 @@ class ControlPlaneWorker(Worker):
                  serialization_format: Optional[SerializationFormat] = None,
                  subworker_management_port: Optional[int] = None,
                  result_cache_max_size: Optional[int] = None,
-                 result_cache_ttl_seconds: Optional[int] = None):
+                 result_cache_ttl_seconds: Optional[int] = None,
+                 gui_enabled: Optional[bool] = None,
+                 gui_host: Optional[str] = None,
+                 gui_port: Optional[int] = None):
         # Load from environment variables with fallback to defaults
         worker_id = worker_id or os.getenv("FASTWORKER_WORKER_ID", "control-plane")
         base_address = base_address or os.getenv("FASTWORKER_BASE_ADDRESS", "tcp://127.0.0.1:5555")
@@ -64,6 +73,15 @@ class ControlPlaneWorker(Worker):
         result_cache_ttl_seconds = result_cache_ttl_seconds or int(
             os.getenv("FASTWORKER_RESULT_CACHE_TTL", "3600")
         )
+
+        # GUI configuration
+        if gui_enabled is None:
+            gui_enabled = os.getenv("FASTWORKER_GUI_ENABLED", "true").lower() in ("true", "1", "yes")
+        self.gui_enabled = gui_enabled
+        self.gui_host = gui_host or os.getenv("FASTWORKER_GUI_HOST", "127.0.0.1")
+        self.gui_port = gui_port or int(os.getenv("FASTWORKER_GUI_PORT", "8080"))
+        self._management_server: Optional['ManagementServer'] = None
+
         # Initialize base worker
         super().__init__(worker_id, base_address, discovery_address, serialization_format)
         
@@ -121,12 +139,26 @@ class ControlPlaneWorker(Worker):
     async def start(self):
         """Start the control plane worker."""
         logger.info(f"Starting control plane worker {self.worker_id}")
-        
+
+        # Start management GUI if enabled
+        if self.gui_enabled:
+            try:
+                from fastworker.gui.server import ManagementServer
+                self._management_server = ManagementServer(
+                    control_plane=self,
+                    host=self.gui_host,
+                    port=self.gui_port
+                )
+                self._management_server.start()
+            except Exception as e:
+                logger.warning(f"Failed to start management GUI: {e}")
+                self._management_server = None
+
         # Set up signal handlers
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self._signal_handler, sig)
-        
+
         # Start service discovery bus
         await self.discovery_bus.start()
         logger.info(f"Discovery bus started on {self.discovery_address}")
@@ -536,6 +568,12 @@ class ControlPlaneWorker(Worker):
     def stop(self):
         """Stop the control plane worker."""
         logger.info(f"Stopping control plane worker {self.worker_id}")
+
+        # Stop management GUI
+        if self._management_server:
+            self._management_server.stop()
+            self._management_server = None
+
         super().stop()  # Call base class stop
         if hasattr(self, 'subworker_registry'):
             self.subworker_registry.close()

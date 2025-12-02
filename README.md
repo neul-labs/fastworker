@@ -1,6 +1,6 @@
 # FastWorker
 
-A brokerless task queue for Python applications with automatic worker discovery and priority handling.
+A brokerless task queue for Python applications with automatic worker discovery, priority handling, and built-in management GUI.
 
 **No Redis. No RabbitMQ. Just Python.**
 
@@ -19,7 +19,7 @@ Traditional task queues (Celery + Redis) require deploying and managing **4-6+ s
 
 **FastWorker requires just 2-3 Python processes:**
 - Your application
-- FastWorker control plane
+- FastWorker control plane (with built-in web UI)
 - FastWorker workers (optional, for scaling)
 
 **That's it.** No external dependencies. No Redis to configure, monitor, backup, or secure. Just Python.
@@ -28,6 +28,7 @@ Traditional task queues (Celery + Redis) require deploying and managing **4-6+ s
 
 - **Brokerless Architecture** - No Redis, RabbitMQ, or other message brokers required
 - **Control Plane Architecture** - Centralized coordination with distributed subworkers
+- **Built-in Management GUI** - Real-time web dashboard for monitoring workers, queues, and tasks
 - **Automatic Worker Discovery** - Workers find each other automatically on the network
 - **Priority Queues** - Support for critical, high, normal, and low priority tasks
 - **Result Caching** - Task results cached with expiration and memory limits
@@ -68,8 +69,10 @@ def multiply(x: int, y: int) -> int:
 
 ```bash
 # Terminal 1 - Start the control plane (coordinates and also processes tasks)
-fastworker control-plane --worker-id control-plane --task-modules mytasks
+fastworker control-plane --task-modules mytasks
 ```
+
+The control plane starts with a **built-in management GUI** at http://127.0.0.1:8080
 
 ### 3. Start Subworkers (Optional - for scaling)
 
@@ -169,6 +172,39 @@ fastworker status --task-id <uuid>
 fastworker list --task-modules mytasks
 ```
 
+## Management GUI
+
+FastWorker includes a **built-in web dashboard** that starts automatically with the control plane. No additional setup required.
+
+**Access the GUI at:** http://127.0.0.1:8080 (default)
+
+### Features
+
+- **Real-time Monitoring** - Auto-refreshes every 5 seconds
+- **Worker Status** - View active/inactive subworkers with load metrics
+- **Queue Visualization** - See task counts by priority (critical, high, normal, low)
+- **Task History** - Browse cached task results with status and timing
+- **Cache Statistics** - Monitor result cache utilization and TTL
+
+### Configuration
+
+```bash
+# Default: GUI enabled on 127.0.0.1:8080
+fastworker control-plane --task-modules mytasks
+
+# Custom host/port (e.g., for remote access)
+fastworker control-plane --gui-host 0.0.0.0 --gui-port 9000 --task-modules mytasks
+
+# Disable GUI entirely
+fastworker control-plane --no-gui --task-modules mytasks
+```
+
+### Environment Variables
+
+- `FASTWORKER_GUI_ENABLED` - Enable/disable GUI (default: `true`)
+- `FASTWORKER_GUI_HOST` - GUI server host (default: `127.0.0.1`)
+- `FASTWORKER_GUI_PORT` - GUI server port (default: `8080`)
+
 ## Priority Handling
 
 ```python
@@ -198,6 +234,8 @@ fastworker control-plane \
   --discovery-address tcp://127.0.0.1:5550 \
   --result-cache-size 10000 \
   --result-cache-ttl 3600 \
+  --gui-host 127.0.0.1 \
+  --gui-port 8080 \
   --task-modules mytasks
 ```
 
@@ -255,6 +293,7 @@ For detailed documentation, see:
 - [Documentation Index](docs/index.md) - Complete documentation
 - [Limitations & Scope](docs/limitations.md) - **Start here** - What FastWorker is and when to use it
 - [API Reference](docs/api.md) - Full API documentation
+- [Management GUI](docs/gui.md) - Web dashboard configuration and usage
 - [FastAPI Integration](docs/fastapi.md) - Web framework integration
 - [OpenTelemetry Integration](docs/telemetry.md) - Distributed tracing and metrics
 - [Configuration Guide](docs/configuration.md) - Environment variables and settings

@@ -4,11 +4,12 @@ This document helps Claude Code and other AI assistants understand the FastWorke
 
 ## Project Overview
 
-**FastWorker** is a brokerless task queue for Python applications with automatic worker discovery and priority handling. It eliminates the need for external message brokers like Redis or RabbitMQ by using a control plane architecture with NNG (nanomsg-next-generation) for messaging.
+**FastWorker** is a brokerless task queue for Python applications with automatic worker discovery, priority handling, and built-in management GUI. It eliminates the need for external message brokers like Redis or RabbitMQ by using a control plane architecture with NNG (nanomsg-next-generation) for messaging.
 
 **Target Use Case**: Moderate-scale Python applications (1K-10K tasks/min)
 **Language**: Python 3.12+
 **Key Dependencies**: pynng, pydantic
+**Frontend**: Vue.js 3, TailwindCSS (for management GUI)
 **License**: MIT
 
 ## Architecture
@@ -41,6 +42,7 @@ This document helps Claude Code and other AI assistants understand the FastWorke
 2. **Subworkers**: Additional workers that register with control plane for load distribution
 3. **Clients**: Connect to control plane for task submission and result retrieval
 4. **Discovery Service**: Enables workers to find the control plane automatically
+5. **Management GUI**: Built-in web dashboard for monitoring (Vue.js + TailwindCSS)
 
 ## Directory Structure
 
@@ -71,6 +73,15 @@ fastworker/
 │   │   ├── tracer.py       # Distributed tracing
 │   │   └── metrics.py      # Metrics collection
 │   │
+│   ├── gui/                # Management GUI
+│   │   ├── __init__.py     # Package exports
+│   │   ├── server.py       # HTTP server with REST API
+│   │   ├── static/         # Pre-built Vue.js frontend
+│   │   └── frontend/       # Vue.js source code
+│   │       ├── src/        # Vue components
+│   │       ├── package.json
+│   │       └── build.sh    # Build script
+│   │
 │   └── examples/           # Example code
 │       ├── tasks.py        # Example task definitions
 │       ├── fastapi_example.py  # FastAPI integration example
@@ -80,6 +91,7 @@ fastworker/
 ├── docs/                   # Documentation
 │   ├── index.md           # Documentation index
 │   ├── api.md             # API reference
+│   ├── gui.md             # Management GUI guide
 │   ├── limitations.md     # Scope and limitations
 │   ├── fastapi.md         # FastAPI integration guide
 │   └── telemetry.md       # OpenTelemetry guide
@@ -97,9 +109,16 @@ fastworker/
 - **`fastworker/cli.py`**: CLI commands implementation (typer-based)
 - **`fastworker/tasks/registry.py`**: Task decorator and registration system
 - **`fastworker/tasks/models.py`**: Core data models (Task, TaskResult, TaskPriority, TaskStatus)
-- **`fastworker/workers/control_plane.py`**: Control plane implementation with result caching
+- **`fastworker/workers/control_plane.py`**: Control plane implementation with result caching and GUI integration
 - **`fastworker/workers/subworker.py`**: Subworker that registers with control plane
 - **`fastworker/clients/client.py`**: Client for task submission (blocking and non-blocking)
+
+### Management GUI
+
+- **`fastworker/gui/server.py`**: HTTP server that serves the GUI and provides REST API
+- **`fastworker/gui/static/`**: Pre-built Vue.js frontend (HTML, CSS, JS)
+- **`fastworker/gui/frontend/`**: Vue.js source code for customization
+- Default address: http://127.0.0.1:8080
 
 ### Communication
 
@@ -142,6 +161,28 @@ The control plane maintains an LRU cache for task results:
 - Control plane broadcasts its address on discovery port (5550)
 - Subworkers and clients discover control plane automatically
 - No manual configuration needed for basic setup
+
+### 5. Management GUI
+
+The control plane includes a built-in web dashboard:
+- **Enabled by default** on http://127.0.0.1:8080
+- **Real-time monitoring** with auto-refresh every 5 seconds
+- **REST API** for programmatic access (`/api/status`, `/api/workers`, `/api/tasks`, etc.)
+- **Vue.js + TailwindCSS** frontend (pre-built, no Node.js required at runtime)
+
+Configuration:
+```bash
+# Custom host/port
+fastworker control-plane --gui-host 0.0.0.0 --gui-port 9000 --task-modules mytasks
+
+# Disable GUI
+fastworker control-plane --no-gui --task-modules mytasks
+```
+
+Environment variables:
+- `FASTWORKER_GUI_ENABLED` - Enable/disable GUI (default: `true`)
+- `FASTWORKER_GUI_HOST` - GUI server host (default: `127.0.0.1`)
+- `FASTWORKER_GUI_PORT` - GUI server port (default: `8080`)
 
 ## Development Workflow
 
@@ -220,6 +261,33 @@ fastworker submit --task-name add --args 5 3
 - Modify `fastworker/telemetry/tracer.py` for tracing
 - Modify `fastworker/telemetry/metrics.py` for metrics
 - OpenTelemetry integration is optional
+
+### Modifying the Management GUI
+
+**Backend (Python):**
+- Edit `fastworker/gui/server.py` for REST API changes
+- Add new endpoints in `ManagementRequestHandler`
+
+**Frontend (Vue.js):**
+```bash
+cd fastworker/gui/frontend
+
+# Install dependencies
+npm install
+
+# Development mode with hot reload
+npm run dev
+
+# Build for production (outputs to ../static/)
+npm run build
+# or use the build script
+./build.sh
+```
+
+**Key frontend files:**
+- `src/App.vue` - Main application component
+- `src/components/` - UI components (StatsCard, WorkersPanel, etc.)
+- `tailwind.config.js` - TailwindCSS configuration
 
 ## Testing Strategy
 
@@ -354,5 +422,5 @@ For questions or contributions, see CONTRIBUTING.md or open an issue on GitHub.
 
 ---
 
-**Last Updated**: 2025-11-17
+**Last Updated**: 2025-12-02
 **Version**: 0.1.1

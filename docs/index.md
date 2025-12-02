@@ -1,6 +1,6 @@
 # FastWorker Documentation
 
-A brokerless task queue for Python applications with automatic worker discovery and priority handling.
+A brokerless task queue for Python applications with automatic worker discovery, priority handling, and built-in management GUI.
 
 **No Redis. No RabbitMQ. Just Python.**
 
@@ -14,7 +14,7 @@ FastWorker eliminates the complexity of traditional task queues by removing the 
 - Your app + Redis broker + Workers + Result backend + Monitoring + HA components
 
 **FastWorker requires 2-3 Python processes:**
-- Your app + Control plane + Workers (optional)
+- Your app + Control plane (with built-in web UI) + Workers (optional)
 
 That's it. No external dependencies to deploy, manage, or secure.
 
@@ -28,6 +28,7 @@ The system uses a **Control Plane Architecture** where:
 
 ### Key Features
 
+- **Built-in Management GUI** - Real-time web dashboard for monitoring
 - **Fault Tolerance** - No single point of failure
 - **Auto-Discovery** - Workers find each other automatically
 - **Priority Queues** - Critical, high, normal, and low priority tasks
@@ -68,6 +69,10 @@ The system uses a **Control Plane Architecture** where:
 - [**Clients**](clients.md) - Client usage and configuration
 - [**Configuration**](configuration.md) - Environment variables and configuration options
 
+### Monitoring & Management
+- [**Management GUI**](gui.md) - Built-in web dashboard for monitoring workers, queues, and tasks
+- [**OpenTelemetry Integration**](telemetry.md) - Distributed tracing and metrics with OpenTelemetry
+
 ### Integration Guides
 - [**FastAPI Integration**](fastapi.md) - Comprehensive FastAPI integration guide
 - [**Framework Integration**](frameworks.md) - Flask, Django, Sanic, and other frameworks
@@ -75,7 +80,6 @@ The system uses a **Control Plane Architecture** where:
 
 ### Resources
 - [**Limitations & Scope**](limitations.md) - What FastWorker is (and isn't), use cases, and when to use alternatives
-- [**OpenTelemetry Integration**](telemetry.md) - Distributed tracing and metrics with OpenTelemetry
 - [**Troubleshooting**](troubleshooting.md) - Common issues and solutions
 
 ## Architecture
