@@ -1,13 +1,11 @@
-[tool.poetry]
+[project]
 name = "fastworker"
 version = "0.1.1"
 description = "A brokerless task queue using nng patterns"
-authors = ["Dipankar Sarkar <me@dipankar.name>"]
-license = "MIT"
+authors = [{name = "Dipankar Sarkar", email = "me@dipankar.name"}]
+license = {text = "MIT"}
 readme = "README.md"
-homepage = "https://github.com/neul-labs/fastworker"
-repository = "https://github.com/neul-labs/fastworker"
-documentation = "https://github.com/neul-labs/fastworker/blob/main/docs/index.md"
+requires-python = ">=3.12"
 keywords = ["task-queue", "celery", "nng", "brokerless", "async", "fastapi"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -17,24 +15,30 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "pynng>=0.8.1",
+    "pydantic>=2.0.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-pynng = "^0.8.1"
-pydantic = "^2.0.0"
+[project.urls]
+Homepage = "https://github.com/neul-labs/fastworker"
+Repository = "https://github.com/neul-labs/fastworker"
+Documentation = "https://github.com/neul-labs/fastworker/blob/main/docs/index.md"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
-pytest-asyncio = "^1.1.0"
-black = "^24.0.0"
-flake8 = "^7.0.0"
+[project.scripts]
+fastworker = "fastworker.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=1.1.0",
+    "black>=24.0.0",
+    "flake8>=7.0.0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-fastworker = "fastworker.cli:main"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

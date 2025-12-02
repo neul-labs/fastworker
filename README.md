@@ -267,13 +267,13 @@ git clone https://github.com/dipankar/fastworker.git
 cd fastworker
 
 # Install dependencies
-poetry install
+uv sync
 
 # Run tests
-poetry run pytest
+uv run pytest
 
 # Format code
-poetry run black .
+uv run black .
 ```
 
 ## Requirements

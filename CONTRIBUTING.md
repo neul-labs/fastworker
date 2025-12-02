@@ -8,27 +8,27 @@ Thank you for your interest in contributing to FastWorker!
    ```bash
    git clone https://github.com/dipankar/fastworker.git
    cd fastworker
-   poetry install
+   uv sync
    ```
 
 2. **Verify Installation**
    ```bash
-   poetry run pytest
-   poetry run fastworker --help
+   uv run pytest
+   uv run fastworker --help
    ```
 
 ## Development Workflow
 
 ### Code Style
-- Use `poetry run black .` for formatting
-- Use `poetry run flake8` for linting
+- Use `uv run black .` for formatting
+- Use `uv run flake8` for linting
 - Follow existing code patterns and conventions
 - Add type hints where appropriate
 
 ### Testing
 - Write tests for all new features and bug fixes
 - Place tests in the `tests/` directory
-- Ensure all tests pass: `poetry run pytest`
+- Ensure all tests pass: `uv run pytest`
 - Aim for good test coverage of new code
 
 ### Commits

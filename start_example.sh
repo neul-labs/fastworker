@@ -3,19 +3,16 @@
 
 echo "Starting FastWorker Example"
 
-# Create a virtual environment if it doesn't exist
-if [ ! -d "fastworker-env" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv fastworker-env
-    source fastworker-env/bin/activate
-    pip install poetry
-else
-    source fastworker-env/bin/activate
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
 # Install dependencies
 echo "Installing dependencies..."
-poetry install
+uv sync
 
 # Create example task file
 cat > mytasks.py << 'EOF'

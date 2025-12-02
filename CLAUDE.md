@@ -96,7 +96,7 @@ fastworker/
 │   ├── fastapi.md         # FastAPI integration guide
 │   └── telemetry.md       # OpenTelemetry guide
 │
-├── pyproject.toml         # Poetry configuration
+├── pyproject.toml         # uv/PEP 621 configuration
 ├── README.md              # User-facing documentation
 └── CONTRIBUTING.md        # Contribution guidelines
 ```
@@ -190,36 +190,36 @@ Environment variables:
 
 ```bash
 # Install dependencies
-poetry install
+uv sync
 
-# Activate virtual environment
-poetry shell
+# Or install with dev dependencies explicitly
+uv sync --group dev
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-poetry run pytest
+uv run pytest
 
 # Run with coverage
-poetry run pytest --cov=fastworker
+uv run pytest --cov=fastworker
 
 # Run specific test file
-poetry run pytest tests/test_client.py
+uv run pytest tests/test_client.py
 ```
 
 ### Code Formatting
 
 ```bash
 # Format code
-poetry run black .
+uv run black .
 
 # Check formatting
-poetry run black . --check
+uv run black . --check
 
 # Lint code
-poetry run flake8
+uv run flake8
 ```
 
 ### Local Testing
@@ -254,7 +254,7 @@ fastworker submit --task-name add --args 5 3
 
 1. Edit `fastworker/cli.py`
 2. Add new function with `@app.command()` decorator
-3. Entry point is defined in `pyproject.toml` under `[tool.poetry.scripts]`
+3. Entry point is defined in `pyproject.toml` under `[project.scripts]`
 
 ### Extending Telemetry
 
@@ -371,15 +371,13 @@ finally:
 
 ```bash
 # Build package
-poetry build
+uv build
 
 # Publish to PyPI (requires credentials)
-poetry publish
+uv publish
 
-# Version bumping (edit pyproject.toml manually or use poetry version)
-poetry version patch  # 0.1.1 -> 0.1.2
-poetry version minor  # 0.1.1 -> 0.2.0
-poetry version major  # 0.1.1 -> 1.0.0
+# Version bumping (edit pyproject.toml manually)
+# Change version = "0.1.1" in [project] section
 ```
 
 ## When Modifying This Codebase
@@ -402,8 +400,8 @@ poetry version major  # 0.1.1 -> 1.0.0
 
 ### Code Review Checklist
 
-- [ ] Tests pass (`poetry run pytest`)
-- [ ] Code formatted (`poetry run black .`)
+- [ ] Tests pass (`uv run pytest`)
+- [ ] Code formatted (`uv run black .`)
 - [ ] No new external dependencies unless critical
 - [ ] Documentation updated (README.md, docs/)
 - [ ] Examples still work
