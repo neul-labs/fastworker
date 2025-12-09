@@ -16,17 +16,22 @@ try:
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource
     from opentelemetry.trace import Status, StatusCode
+
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
-    logger.debug("OpenTelemetry not available. Install with: pip install fastworker[telemetry]")
+    logger.debug(
+        "OpenTelemetry not available. Install with: pip install fastworker[telemetry]"
+    )
 
 
 class NoOpTracer:
     """No-op tracer when OpenTelemetry is not available or disabled."""
 
     @contextmanager
-    def start_as_current_span(self, name: str, attributes: Optional[Dict[str, Any]] = None):
+    def start_as_current_span(
+        self, name: str, attributes: Optional[Dict[str, Any]] = None
+    ):
         """No-op context manager."""
         yield None
 
@@ -63,7 +68,11 @@ class NoOpSpan:
 
 # Global tracer instance
 _tracer: Optional[Any] = None
-_telemetry_enabled = os.getenv("FASTWORKER_TELEMETRY_ENABLED", "false").lower() in ("true", "1", "yes")
+_telemetry_enabled = os.getenv("FASTWORKER_TELEMETRY_ENABLED", "false").lower() in (
+    "true",
+    "1",
+    "yes",
+)
 
 
 def _initialize_tracer():
@@ -71,19 +80,25 @@ def _initialize_tracer():
     global _tracer
 
     if not OTEL_AVAILABLE:
-        logger.warning("OpenTelemetry not available. Install with: pip install fastworker[telemetry]")
+        logger.warning(
+            "OpenTelemetry not available. Install with: pip install fastworker[telemetry]"
+        )
         _tracer = NoOpTracer()
         return
 
     if not _telemetry_enabled:
-        logger.debug("Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable.")
+        logger.debug(
+            "Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable."
+        )
         _tracer = NoOpTracer()
         return
 
     try:
         # Get configuration from environment
         service_name = os.getenv("OTEL_SERVICE_NAME", "fastworker")
-        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        otlp_endpoint = os.getenv(
+            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
+        )
 
         # Create resource with service name
         resource = Resource.create({"service.name": service_name})
@@ -104,7 +119,9 @@ def _initialize_tracer():
         # Get tracer
         _tracer = trace.get_tracer(__name__)
 
-        logger.info(f"OpenTelemetry tracer initialized: service={service_name}, endpoint={otlp_endpoint}")
+        logger.info(
+            f"OpenTelemetry tracer initialized: service={service_name}, endpoint={otlp_endpoint}"
+        )
 
     except Exception as e:
         logger.error(f"Failed to initialize OpenTelemetry tracer: {e}")
@@ -117,7 +134,6 @@ def get_tracer():
     Returns:
         Tracer instance (OpenTelemetry tracer or NoOpTracer)
     """
-    global _tracer
     if _tracer is None:
         _initialize_tracer()
     return _tracer
@@ -159,6 +175,7 @@ def trace_task(func):
         def my_task(x: int) -> int:
             return x * 2
     """
+
     @wraps(func)
     async def async_wrapper(*args, **kwargs):
         task_name = func.__name__
@@ -204,8 +221,9 @@ def trace_task(func):
                 raise
 
     # Return appropriate wrapper based on function type
-    import asyncio
-    if asyncio.iscoroutinefunction(func):
+    import asyncio as aio
+
+    if aio.iscoroutinefunction(func):
         return async_wrapper
     else:
         return sync_wrapper

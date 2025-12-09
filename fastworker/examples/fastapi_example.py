@@ -1,11 +1,13 @@
 """Example FastAPI application using FastWorker."""
+
 from fastapi import FastAPI, BackgroundTasks
-from fastworker import task, Worker, Client
+from fastworker import task, Client
 from fastworker.tasks.models import TaskPriority
 import asyncio
 
 # Create FastAPI app
 app = FastAPI(title="FastWorker FastAPI Example")
+
 
 # Define some tasks
 @task
@@ -15,12 +17,14 @@ def process_user_registration(user_id: int, email: str) -> str:
     print(f"Processing registration for user {user_id} with email {email}")
     return f"User {user_id} registered successfully"
 
+
 @task
 def send_notification(user_id: int, message: str) -> str:
     """Send notification to user."""
     # Simulate sending notification
     print(f"Sending notification to user {user_id}: {message}")
     return f"Notification sent to user {user_id}"
+
 
 @task
 async def async_data_processing(data: dict) -> dict:
@@ -29,8 +33,11 @@ async def async_data_processing(data: dict) -> dict:
     await asyncio.sleep(1)  # Simulate async work
     return {"status": "processed", "data": data}
 
-# Global client instance (in a real app, you might want to manage this differently)
+
+# Global client instance
+# (in a real app, you might want to manage this differently)
 client = None
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -40,13 +47,14 @@ async def startup_event():
     await client.start()
     print("FastWorker client initialized")
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean up FastWorker client on shutdown."""
-    global client
     if client:
         client.stop()
         print("FastWorker client stopped")
+
 
 @app.post("/register_user/")
 async def register_user(user_id: int, email: str, background_tasks: BackgroundTasks):
@@ -56,20 +64,25 @@ async def register_user(user_id: int, email: str, background_tasks: BackgroundTa
         # For immediate response, we can use FastAPI's background tasks for simple cases
         # or FastWorker for more complex distributed processing
         background_tasks.add_task(process_user_registration, user_id, email)
-        
+
         # Or submit to FastWorker for distributed processing
-        # result = await client.delay("process_user_registration", user_id, email, priority=TaskPriority.HIGH)
-        
+        # result = await client.delay(
+        #     "process_user_registration", user_id, email, priority=TaskPriority.HIGH
+        # )
+
         return {"message": "User registration started", "user_id": user_id}
     else:
         return {"error": "FastWorker client not available"}
+
 
 @app.post("/send_notification/")
 async def send_user_notification(user_id: int, message: str):
     """Send notification to user."""
     if client:
         # Submit to FastWorker with high priority
-        result = await client.delay("send_notification", user_id, message, priority=TaskPriority.HIGH)
+        result = await client.delay(
+            "send_notification", user_id, message, priority=TaskPriority.HIGH
+        )
         if result.status == "success":
             return {"message": "Notification sent", "result": result.result}
         else:
@@ -77,12 +90,15 @@ async def send_user_notification(user_id: int, message: str):
     else:
         return {"error": "FastWorker client not available"}
 
+
 @app.post("/process_data/")
 async def process_data(data: dict):
     """Process data asynchronously."""
     if client:
         # Submit async task to FastWorker
-        result = await client.delay("async_data_processing", data, priority=TaskPriority.NORMAL)
+        result = await client.delay(
+            "async_data_processing", data, priority=TaskPriority.NORMAL
+        )
         if result.status == "success":
             return {"message": "Data processing completed", "result": result.result}
         else:
@@ -90,17 +106,18 @@ async def process_data(data: dict):
     else:
         return {"error": "FastWorker client not available"}
 
+
 @app.post("/process_data_with_callback/")
 async def process_data_with_callback(data: dict, callback_address: str):
     """Process data asynchronously with a callback when finished."""
     if client:
         # Submit async task to FastWorker with callback
         result = await client.delay_with_callback(
-            "async_data_processing", 
-            callback_address, 
-            data, 
+            "async_data_processing",
+            callback_address,
+            data,
             priority=TaskPriority.NORMAL,
-            callback_data={"endpoint": "/process_data_with_callback/"}
+            callback_data={"endpoint": "/process_data_with_callback/"},
         )
         if result.status == "success":
             return {"message": "Data processing started", "task_id": result.task_id}
@@ -109,10 +126,12 @@ async def process_data_with_callback(data: dict, callback_address: str):
     else:
         return {"error": "FastWorker client not available"}
 
+
 @app.get("/")
 async def root():
     """Root endpoint."""
     return {"message": "FastWorker FastAPI Example"}
+
 
 # To run this example:
 # 1. Start one or more FastWorker workers in separate terminals:
@@ -122,7 +141,9 @@ async def root():
 #    uvicorn fastworker.examples.fastapi_example:app --reload
 #
 # 3. Make requests to the endpoints:
-#    curl -X POST "http://127.0.0.1:8000/register_user/?user_id=1&email=test@example.com"
+#    curl -X POST "http://127.0.0.1:8000/register_user/?user_id=1&email=test@ex.com"
 #    curl -X POST "http://127.0.0.1:8000/send_notification/?user_id=1&message=Hello"
-#    curl -X POST "http://127.0.0.1:8000/process_data/" -H "Content-Type: application/json" -d '{"key": "value"}'
-#    curl -X POST "http://127.0.0.1:8000/process_data_with_callback/?callback_address=tcp://127.0.0.1:5560" -H "Content-Type: application/json" -d '{"key": "value"}'
+#    curl -X POST "http://127.0.0.1:8000/process_data/" \
+#      -H "Content-Type: application/json" -d '{"key": "value"}'
+#    curl -X POST "http://127.0.0.1:8000/process_data_with_callback/?..." \
+#      -H "Content-Type: application/json" -d '{"key": "value"}'

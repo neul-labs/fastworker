@@ -11,12 +11,17 @@ try:
     from opentelemetry import metrics
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import (
+        OTLPMetricExporter,
+    )
     from opentelemetry.sdk.resources import Resource
+
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
-    logger.debug("OpenTelemetry metrics not available. Install with: pip install fastworker[telemetry]")
+    logger.debug(
+        "OpenTelemetry metrics not available. Install with: pip install fastworker[telemetry]"
+    )
 
 
 class NoOpMeter:
@@ -46,7 +51,9 @@ class NoOpCounter:
 class NoOpHistogram:
     """No-op histogram."""
 
-    def record(self, amount: float, attributes: Optional[Dict[str, Any]] = None) -> None:
+    def record(
+        self, amount: float, attributes: Optional[Dict[str, Any]] = None
+    ) -> None:
         """No-op record."""
         pass
 
@@ -61,7 +68,11 @@ class NoOpUpDownCounter:
 
 # Global meter instance
 _meter: Optional[Any] = None
-_telemetry_enabled = os.getenv("FASTWORKER_TELEMETRY_ENABLED", "false").lower() in ("true", "1", "yes")
+_telemetry_enabled = os.getenv("FASTWORKER_TELEMETRY_ENABLED", "false").lower() in (
+    "true",
+    "1",
+    "yes",
+)
 
 # Metric instruments
 _task_submitted_counter: Optional[Any] = None
@@ -78,7 +89,9 @@ def _initialize_meter():
     global _task_duration_histogram, _worker_active_gauge, _queue_size_gauge
 
     if not OTEL_AVAILABLE:
-        logger.warning("OpenTelemetry metrics not available. Install with: pip install fastworker[telemetry]")
+        logger.warning(
+            "OpenTelemetry metrics not available. Install with: pip install fastworker[telemetry]"
+        )
         _meter = NoOpMeter()
         _task_submitted_counter = NoOpCounter()
         _task_completed_counter = NoOpCounter()
@@ -89,7 +102,9 @@ def _initialize_meter():
         return
 
     if not _telemetry_enabled:
-        logger.debug("Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable.")
+        logger.debug(
+            "Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable."
+        )
         _meter = NoOpMeter()
         _task_submitted_counter = NoOpCounter()
         _task_completed_counter = NoOpCounter()
@@ -102,7 +117,9 @@ def _initialize_meter():
     try:
         # Get configuration from environment
         service_name = os.getenv("OTEL_SERVICE_NAME", "fastworker")
-        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        otlp_endpoint = os.getenv(
+            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
+        )
 
         # Create resource with service name
         resource = Resource.create({"service.name": service_name})
@@ -111,7 +128,9 @@ def _initialize_meter():
         otlp_exporter = OTLPMetricExporter(endpoint=otlp_endpoint, insecure=True)
 
         # Create metric reader
-        reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=60000)
+        reader = PeriodicExportingMetricReader(
+            otlp_exporter, export_interval_millis=60000
+        )
 
         # Create meter provider
         provider = MeterProvider(resource=resource, metric_readers=[reader])
@@ -126,40 +145,42 @@ def _initialize_meter():
         _task_submitted_counter = _meter.create_counter(
             name="fastworker.tasks.submitted",
             unit="1",
-            description="Number of tasks submitted"
+            description="Number of tasks submitted",
         )
 
         _task_completed_counter = _meter.create_counter(
             name="fastworker.tasks.completed",
             unit="1",
-            description="Number of tasks completed successfully"
+            description="Number of tasks completed successfully",
         )
 
         _task_failed_counter = _meter.create_counter(
             name="fastworker.tasks.failed",
             unit="1",
-            description="Number of tasks that failed"
+            description="Number of tasks that failed",
         )
 
         _task_duration_histogram = _meter.create_histogram(
             name="fastworker.tasks.duration",
             unit="ms",
-            description="Task execution duration in milliseconds"
+            description="Task execution duration in milliseconds",
         )
 
         _worker_active_gauge = _meter.create_up_down_counter(
             name="fastworker.workers.active",
             unit="1",
-            description="Number of active workers"
+            description="Number of active workers",
         )
 
         _queue_size_gauge = _meter.create_up_down_counter(
             name="fastworker.queue.size",
             unit="1",
-            description="Number of tasks in queue"
+            description="Number of tasks in queue",
         )
 
-        logger.info(f"OpenTelemetry metrics initialized: service={service_name}, endpoint={otlp_endpoint}")
+        logger.info(
+            f"OpenTelemetry metrics initialized: service={service_name}, endpoint={otlp_endpoint}"
+        )
 
     except Exception as e:
         logger.error(f"Failed to initialize OpenTelemetry metrics: {e}")
@@ -178,7 +199,6 @@ def get_meter():
     Returns:
         Meter instance (OpenTelemetry meter or NoOpMeter)
     """
-    global _meter
     if _meter is None:
         _initialize_meter()
     return _meter
@@ -189,7 +209,7 @@ def record_task_metric(
     task_name: str,
     priority: Optional[str] = None,
     worker_id: Optional[str] = None,
-    duration_ms: Optional[float] = None
+    duration_ms: Optional[float] = None,
 ):
     """Record a task metric.
 
@@ -262,10 +282,7 @@ def record_queue_size(worker_id: str, priority: str, size: int):
     if _meter is None:
         _initialize_meter()
 
-    attributes = {
-        "worker.id": worker_id,
-        "queue.priority": priority
-    }
+    attributes = {"worker.id": worker_id, "queue.priority": priority}
 
     # This would ideally be an observable gauge, but we use up-down counter for simplicity
     # In a real implementation, you might want to use callbacks for observable gauges

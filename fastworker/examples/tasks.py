@@ -1,17 +1,21 @@
 """Example tasks for FastWorker."""
+
 import asyncio
 import time
 from fastworker.tasks.registry import task
+
 
 @task
 def add(x: int, y: int) -> int:
     """Add two numbers."""
     return x + y
 
+
 @task
 def multiply(x: int, y: int) -> int:
     """Multiply two numbers."""
     return x * y
+
 
 @task
 async def async_add(x: int, y: int) -> int:
@@ -19,11 +23,13 @@ async def async_add(x: int, y: int) -> int:
     await asyncio.sleep(0.1)  # Simulate async work
     return x + y
 
+
 @task
 def slow_task(seconds: int) -> str:
     """A slow task."""
     time.sleep(seconds)
     return f"Slept for {seconds} seconds"
+
 
 @task
 def divide(x: int, y: int) -> float:

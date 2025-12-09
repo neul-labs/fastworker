@@ -1,9 +1,13 @@
 """Test cases for FastWorker models."""
-import pytest
+
 import uuid
 from datetime import datetime
 from fastworker.tasks.models import (
-    Task, TaskPriority, TaskStatus, TaskResult, CallbackInfo
+    Task,
+    TaskPriority,
+    TaskStatus,
+    TaskResult,
+    CallbackInfo,
 )
 
 
@@ -29,7 +33,7 @@ def test_task_creation():
         name="test_task",
         args=(1, 2, 3),
         kwargs={"key": "value"},
-        priority=TaskPriority.HIGH
+        priority=TaskPriority.HIGH,
     )
 
     assert task.name == "test_task"
@@ -43,17 +47,9 @@ def test_task_creation():
 
 def test_task_with_callback():
     """Test Task creation with callback."""
-    callback_info = CallbackInfo(
-        address="tcp://127.0.0.1:5570",
-        data={"test": "data"}
-    )
+    callback_info = CallbackInfo(address="tcp://127.0.0.1:5570", data={"test": "data"})
 
-    task = Task(
-        name="callback_task",
-        args=(),
-        kwargs={},
-        callback=callback_info
-    )
+    task = Task(name="callback_task", args=(), kwargs={}, callback=callback_info)
 
     assert task.callback is not None
     assert task.callback.address == "tcp://127.0.0.1:5570"
@@ -65,7 +61,7 @@ def test_task_result_success():
     result = TaskResult(
         task_id="test-task-id",
         status=TaskStatus.SUCCESS,
-        result="Task completed successfully"
+        result="Task completed successfully",
     )
 
     assert result.task_id == "test-task-id"
@@ -79,9 +75,7 @@ def test_task_result_success():
 def test_task_result_failure():
     """Test TaskResult for failed execution."""
     result = TaskResult(
-        task_id="test-task-id",
-        status=TaskStatus.FAILURE,
-        error="Task execution failed"
+        task_id="test-task-id", status=TaskStatus.FAILURE, error="Task execution failed"
     )
 
     assert result.task_id == "test-task-id"
@@ -93,8 +87,7 @@ def test_task_result_failure():
 def test_callback_info():
     """Test CallbackInfo model."""
     callback = CallbackInfo(
-        address="tcp://127.0.0.1:5570",
-        data={"user_id": 123, "action": "notification"}
+        address="tcp://127.0.0.1:5570", data={"user_id": 123, "action": "notification"}
     )
 
     assert callback.address == "tcp://127.0.0.1:5570"
@@ -128,7 +121,7 @@ def test_task_serialization():
         name="serialize_task",
         args=(1, 2),
         kwargs={"key": "value"},
-        priority=TaskPriority.HIGH
+        priority=TaskPriority.HIGH,
     )
 
     task_dict = task.model_dump()

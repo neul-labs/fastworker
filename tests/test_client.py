@@ -1,9 +1,9 @@
 """Test cases for FastWorker Client."""
+
 import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import patch
 from fastworker.clients.client import Client
-from fastworker.tasks.models import Task, TaskPriority, TaskResult, TaskStatus
+from fastworker.tasks.models import TaskPriority, TaskStatus
 
 
 @pytest.mark.asyncio
@@ -20,7 +20,7 @@ async def test_client_initialization():
 @pytest.mark.asyncio
 async def test_client_start():
     """Test client start functionality."""
-    with patch.object(Client, '_listen_for_workers') as mock_listen:
+    with patch.object(Client, "_listen_for_workers") as mock_listen:
         client = Client()
         await client.start()
 
@@ -52,50 +52,50 @@ async def test_worker_discovery():
 
 @pytest.mark.asyncio
 async def test_submit_task_no_workers():
-    """Test submitting task when no workers are available."""
+    """Test submitting task when no workers are available - task is queued."""
     client = Client()
-    await client.start()
+    # Don't start client - it would try to connect to discovery
 
+    # Manually set running flag and empty workers
+    client.running = True
+    client.workers = set()
+
+    # When no workers are available, task is queued and returned with PENDING status
     result = await client.submit_task("test_task", (), {}, TaskPriority.NORMAL)
 
-    assert result.status == TaskStatus.FAILURE
-    assert "No workers available" in result.error
-
-    client.stop()
+    # Task should be pending (queued) when no workers are available
+    assert result.status == TaskStatus.PENDING
+    # The task should be in the pending tasks queue
+    assert len(client.pending_tasks) == 1
 
 
 @pytest.mark.asyncio
 async def test_delay_method():
     """Test delay method interface."""
     client = Client()
+    client.running = True
     client.workers.add(("worker1", "tcp://127.0.0.1:5555"))
 
-    with patch.object(client, 'submit_task') as mock_submit:
-        mock_submit.return_value = TaskResult(
-            task_id="test-id",
-            status=TaskStatus.SUCCESS,
-            result="success"
-        )
+    # delay() returns a task ID (string), not a TaskResult
+    # It creates the task and submits it in the background
+    task_id = await client.delay(
+        "test_task", "arg1", "arg2", priority=TaskPriority.HIGH
+    )
 
-        result = await client.delay("test_task", "arg1", "arg2", priority=TaskPriority.HIGH)
+    # task_id should be a non-empty string
+    assert isinstance(task_id, str)
+    assert len(task_id) > 0
 
-        mock_submit.assert_called_once_with(
-            "test_task",
-            ("arg1", "arg2"),
-            {},
-            TaskPriority.HIGH
-        )
-        assert result.status == TaskStatus.SUCCESS
+    # The result should be stored in task_results with PENDING status
+    assert task_id in client.task_results
+    result = client.task_results[task_id]
+    assert result.status == TaskStatus.PENDING
 
 
 @pytest.mark.asyncio
 async def test_custom_client_settings():
     """Test client with custom settings."""
-    client = Client(
-        discovery_address="tcp://127.0.0.1:6000",
-        timeout=60,
-        retries=5
-    )
+    client = Client(discovery_address="tcp://127.0.0.1:6000", timeout=60, retries=5)
 
     assert client.discovery_address == "tcp://127.0.0.1:6000"
     assert client.timeout == 60

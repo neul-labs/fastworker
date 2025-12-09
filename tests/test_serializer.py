@@ -1,7 +1,5 @@
 """Test cases for FastWorker serializer."""
-import pytest
-import json
-import pickle
+
 from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
 
 
@@ -11,7 +9,7 @@ def test_json_serialization():
         "name": "test_task",
         "args": [1, 2, 3],
         "kwargs": {"key": "value"},
-        "priority": "normal"
+        "priority": "normal",
     }
 
     # Serialize
@@ -29,7 +27,7 @@ def test_pickle_serialization():
         "name": "test_task",
         "args": (1, 2, 3),
         "kwargs": {"key": "value"},
-        "complex_object": {"nested": {"data": [1, 2, 3]}}
+        "complex_object": {"nested": {"data": [1, 2, 3]}},
     }
 
     # Serialize
@@ -47,15 +45,9 @@ def test_json_with_complex_data():
         "task_id": "12345-abcde",
         "result": {
             "status": "success",
-            "data": [
-                {"id": 1, "name": "Item 1"},
-                {"id": 2, "name": "Item 2"}
-            ],
-            "metadata": {
-                "count": 2,
-                "timestamp": "2024-09-05T10:30:00Z"
-            }
-        }
+            "data": [{"id": 1, "name": "Item 1"}, {"id": 2, "name": "Item 2"}],
+            "metadata": {"count": 2, "timestamp": "2024-09-05T10:30:00Z"},
+        },
     }
 
     serialized = TaskSerializer.serialize(data, SerializationFormat.JSON)
@@ -70,7 +62,7 @@ def test_pickle_with_builtin_objects():
         "name": "custom_task",
         "custom_arg": {"nested": "value"},
         "list_arg": [1, 2, 3, {"inner": "data"}],
-        "tuple_arg": (1, "string", [4, 5, 6])
+        "tuple_arg": (1, "string", [4, 5, 6]),
     }
 
     serialized = TaskSerializer.serialize(data, SerializationFormat.PICKLE)
@@ -93,12 +85,16 @@ def test_empty_data_serialization():
 
     # JSON
     json_serialized = TaskSerializer.serialize(empty_dict, SerializationFormat.JSON)
-    json_deserialized = TaskSerializer.deserialize(json_serialized, SerializationFormat.JSON)
+    json_deserialized = TaskSerializer.deserialize(
+        json_serialized, SerializationFormat.JSON
+    )
     assert json_deserialized == empty_dict
 
     # Pickle
     pickle_serialized = TaskSerializer.serialize(empty_list, SerializationFormat.PICKLE)
-    pickle_deserialized = TaskSerializer.deserialize(pickle_serialized, SerializationFormat.PICKLE)
+    pickle_deserialized = TaskSerializer.deserialize(
+        pickle_serialized, SerializationFormat.PICKLE
+    )
     assert pickle_deserialized == empty_list
 
 
@@ -108,12 +104,16 @@ def test_none_value_serialization():
 
     # JSON
     json_serialized = TaskSerializer.serialize(data, SerializationFormat.JSON)
-    json_deserialized = TaskSerializer.deserialize(json_serialized, SerializationFormat.JSON)
+    json_deserialized = TaskSerializer.deserialize(
+        json_serialized, SerializationFormat.JSON
+    )
     assert json_deserialized == data
 
     # Pickle
     pickle_serialized = TaskSerializer.serialize(data, SerializationFormat.PICKLE)
-    pickle_deserialized = TaskSerializer.deserialize(pickle_serialized, SerializationFormat.PICKLE)
+    pickle_deserialized = TaskSerializer.deserialize(
+        pickle_serialized, SerializationFormat.PICKLE
+    )
     assert pickle_deserialized == data
 
 
@@ -122,13 +122,7 @@ def test_large_data_serialization():
     large_data = {
         "large_list": list(range(1000)),
         "large_dict": {f"key_{i}": f"value_{i}" for i in range(100)},
-        "nested": {
-            "level1": {
-                "level2": {
-                    "level3": "deep_value"
-                }
-            }
-        }
+        "nested": {"level1": {"level2": {"level3": "deep_value"}}},
     }
 
     # Test both formats
