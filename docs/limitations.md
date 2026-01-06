@@ -892,6 +892,34 @@ def my_task(data):
 
 ---
 
+### Security Limitations
+
+FastWorker is designed for **trusted environments**. It does NOT include built-in authentication or encryption.
+
+**Current security model:**
+- No authentication on task submission
+- No authentication on result queries
+- No authentication on the management GUI
+- No TLS/encryption on internal communication (configurable at network level)
+- Pickle serialization is insecure by design
+
+**Implications:**
+- Anyone with network access can submit tasks
+- Anyone with network access can query task results
+- Anyone with network access can view/manage via GUI
+- Pickle deserialization can execute arbitrary code
+
+**Security recommendations:**
+1. Run on isolated/trusted networks only
+2. Use firewall rules to restrict access to control plane ports
+3. Use JSON serialization (`SerializationFormat.JSON`) for untrusted clients
+4. Consider a reverse proxy with authentication for the GUI
+5. Do not expose control plane to the public internet
+
+For more details, see [Security Considerations](security.md).
+
+---
+
 ## Architectural Limitations
 
 ### Network Requirements

@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import os
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from fastworker.patterns.nng_patterns import (
     BusPattern,
     ReqRepPattern,
@@ -251,12 +251,12 @@ class Client:
         self,
         task_name: str,
         args: tuple = (),
-        kwargs: dict = {},
+        kwargs: Optional[Dict[str, Any]] = None,
         priority: TaskPriority = TaskPriority.NORMAL,
     ) -> TaskResult:
         """Submit a task to workers and wait for result."""
         # Create task
-        task = Task(name=task_name, args=args, kwargs=kwargs, priority=priority)
+        task = Task(name=task_name, args=args, kwargs=kwargs or {}, priority=priority)
 
         return await self._submit_task_internal(task)
 
@@ -330,7 +330,7 @@ class Client:
         task_name: str,
         callback_address: str,
         *args,
-        callback_data: dict = None,
+        callback_data: Optional[Dict[str, Any]] = None,
         priority: TaskPriority = TaskPriority.NORMAL,
         **kwargs,
     ) -> str:

@@ -1,6 +1,6 @@
 """FastWorker - A brokerless task queue using nng patterns."""
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from fastworker.tasks.registry import task
 

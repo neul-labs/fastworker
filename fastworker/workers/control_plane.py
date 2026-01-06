@@ -345,7 +345,7 @@ class ControlPlaneWorker(Worker):
 
                 if result:
                     # Return result
-                    response = {"found": True, "result": result.dict()}
+                    response = {"found": True, "result": result.model_dump()}
                     logger.debug(f"Returned result for task {task_id} to query")
                 else:
                     # Result not found or expired
