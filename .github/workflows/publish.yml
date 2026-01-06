@@ -18,6 +18,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "0.5.6"
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.12
@@ -34,8 +35,26 @@ jobs:
       - name: Run tests
         run: uv run pytest -v
 
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: fastworker/gui/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd fastworker/gui/frontend && npm install
+
+      - name: Run ESLint
+        run: cd fastworker/gui/frontend && npx eslint .
+
   deploy:
-    needs: test
+    needs: [test, lint-frontend]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -47,6 +66,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "0.5.6"
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.12

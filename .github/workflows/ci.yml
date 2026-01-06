@@ -21,6 +21,7 @@ jobs:
         uses: astral-sh/setup-uv@v4
         with:
           version: "0.5.6"
+          enable-cache: true
 
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
@@ -36,3 +37,41 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -v
+
+  lint-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: fastworker/gui/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd fastworker/gui/frontend && npm install
+
+      - name: Run ESLint
+        run: cd fastworker/gui/frontend && npx eslint .
+
+  check-version:
+    needs: [test, lint-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version and create tag
+        run: |
+          CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+          if [ "$PREV_TAG" != "v$CURRENT_VERSION" ]; then
+            git tag "v$CURRENT_VERSION"
+            git push origin "v$CURRENT_VERSION"
+          fi

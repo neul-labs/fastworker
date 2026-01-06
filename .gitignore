@@ -147,3 +147,5 @@ uv.lock
 
 fastworker-env
 mytasks.py
+
+.claude/
