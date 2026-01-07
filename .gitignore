@@ -143,7 +143,6 @@ Thumbs.db
 
 # uv
 .uv
-uv.lock
 
 fastworker-env
 mytasks.py
