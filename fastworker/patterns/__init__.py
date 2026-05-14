@@ -1,7 +1,7 @@
 from fastworker.patterns.nng_patterns import (
-    ReqRepPattern,
     BusPattern,
     PairPattern,
+    ReqRepPattern,
     SurveyorRespondentPattern,
 )
 

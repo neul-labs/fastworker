@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 from typing import Dict, List, Optional
+
 from fastworker.patterns.nng_patterns import BusPattern
 
 logger = logging.getLogger(__name__)

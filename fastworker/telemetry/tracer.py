@@ -1,20 +1,20 @@
 """OpenTelemetry tracing support for FastWorker."""
 
-import os
 import logging
+import os
 from contextlib import contextmanager
-from typing import Optional, Any, Dict
 from functools import wraps
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 # Check if OpenTelemetry is available
 try:
     from opentelemetry import trace
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.trace import Status, StatusCode
 
     OTEL_AVAILABLE = True

@@ -1,8 +1,10 @@
 """Tests for the generic StateMachine base class."""
 
 import asyncio
-import pytest
 from enum import Enum
+
+import pytest
+
 from fastworker.utils.state_machine import StateMachine
 
 

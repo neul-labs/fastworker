@@ -1,7 +1,8 @@
 """Test cases for FastWorker CLI."""
 
-from unittest.mock import patch, Mock
-from fastworker.cli import main, load_tasks, start_worker, submit_task, list_tasks
+from unittest.mock import Mock, patch
+
+from fastworker.cli import list_tasks, load_tasks, main, start_worker, submit_task
 
 
 def test_load_tasks_success():

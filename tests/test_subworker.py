@@ -1,11 +1,9 @@
 """Test cases for FastWorker SubWorker."""
 
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from datetime import datetime
 
 from fastworker.workers.subworker import SubWorker
-from fastworker.tasks.models import TaskPriority
 
 
 def test_subworker_initialization():

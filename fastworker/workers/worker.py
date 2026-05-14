@@ -5,23 +5,24 @@ import logging
 import os
 import signal
 from datetime import datetime
+from urllib.parse import urlparse
+
 from fastworker.patterns.nng_patterns import (
-    SurveyorRespondentPattern,
     BusPattern,
     PairPattern,
+    SurveyorRespondentPattern,
 )
-from fastworker.tasks.registry import task_registry
 from fastworker.tasks.models import (
     Task,
+    TaskPriority,
     TaskResult,
     TaskStatus,
-    TaskPriority,
 )
-from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
-from fastworker.workers.state import WorkerStateMachine, WorkerState
-from fastworker.telemetry.tracer import trace_operation
+from fastworker.tasks.registry import task_registry
+from fastworker.tasks.serializer import SerializationFormat, TaskSerializer
 from fastworker.telemetry.metrics import record_task_metric
-from urllib.parse import urlparse
+from fastworker.telemetry.tracer import trace_operation
+from fastworker.workers.state import WorkerState, WorkerStateMachine
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,7 @@ class Worker:
                 self._active_tasks, timeout=self.shutdown_timeout
             )
             for t in pending:
-                logger.warning(f"Cancelling in-flight task during shutdown")
+                logger.warning("Cancelling in-flight task during shutdown")
                 t.cancel()
 
         # Cancel the task runner loops

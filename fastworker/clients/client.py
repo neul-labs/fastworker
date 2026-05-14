@@ -3,23 +3,24 @@
 import asyncio
 import logging
 import os
-from typing import Optional, Dict, Any
+from collections import deque
+from typing import Any, Dict, Optional
+from urllib.parse import urlparse
+
 from fastworker.patterns.nng_patterns import (
     BusPattern,
     ReqRepPattern,
 )
 from fastworker.tasks.models import (
+    CallbackInfo,
     Task,
     TaskPriority,
     TaskResult,
     TaskStatus,
-    CallbackInfo,
 )
-from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
-from fastworker.telemetry.tracer import trace_operation
+from fastworker.tasks.serializer import SerializationFormat, TaskSerializer
 from fastworker.telemetry.metrics import record_task_metric
-from urllib.parse import urlparse
-from collections import deque
+from fastworker.telemetry.tracer import trace_operation
 
 logger = logging.getLogger(__name__)
 

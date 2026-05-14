@@ -1,10 +1,12 @@
 """Test cases for FastWorker Worker."""
 
-import pytest
 from unittest.mock import patch
-from fastworker.workers.worker import Worker
+
+import pytest
+
 from fastworker.tasks.models import Task, TaskPriority
-from fastworker.tasks.registry import task_registry, task
+from fastworker.tasks.registry import task, task_registry
+from fastworker.workers.worker import Worker
 
 
 @pytest.fixture

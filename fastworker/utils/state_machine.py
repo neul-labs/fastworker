@@ -1,8 +1,8 @@
 """Generic async state machine with atomic transitions and event emission."""
 
 import asyncio
-from typing import TypeVar, Generic, Callable, Awaitable
 from enum import Enum
+from typing import Awaitable, Callable, Generic, TypeVar
 
 S = TypeVar("S", bound=Enum)
 

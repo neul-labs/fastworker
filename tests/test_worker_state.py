@@ -1,7 +1,8 @@
 """Tests for WorkerStateMachine — full worker lifecycle."""
 
 import pytest
-from fastworker.workers.state import WorkerStateMachine, WorkerState
+
+from fastworker.workers.state import WorkerState, WorkerStateMachine
 
 
 @pytest.fixture

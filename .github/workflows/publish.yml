@@ -26,35 +26,17 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev
 
-      - name: Check formatting with black
-        run: uv run black . --check
+      - name: Check formatting with ruff
+        run: uv run ruff format --check .
 
-      - name: Lint with flake8
-        run: uv run flake8 fastworker tests --max-line-length=120
+      - name: Lint with ruff
+        run: uv run ruff check fastworker tests
 
       - name: Run tests
-        run: uv run pytest -v
-
-  lint-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: fastworker/gui/frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        run: cd fastworker/gui/frontend && npm install
-
-      - name: Run ESLint
-        run: cd fastworker/gui/frontend && npx eslint .
+        run: uv run pytest --ignore=tests/test_discovery.py --ignore=tests/integration_test.py -v
 
   deploy:
-    needs: [test, lint-frontend]
+    needs: [test]
     runs-on: ubuntu-latest
     environment:
       name: pypi

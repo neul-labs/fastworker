@@ -2,12 +2,13 @@
 
 import uuid
 from datetime import datetime
+
 from fastworker.tasks.models import (
+    CallbackInfo,
     Task,
     TaskPriority,
-    TaskStatus,
     TaskResult,
-    CallbackInfo,
+    TaskStatus,
 )
 
 

@@ -1,6 +1,6 @@
 """Test cases for FastWorker serializer."""
 
-from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
+from fastworker.tasks.serializer import SerializationFormat, TaskSerializer
 
 
 def test_json_serialization():

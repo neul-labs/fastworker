@@ -7,9 +7,9 @@ import signal
 from typing import Optional
 from urllib.parse import urlparse
 
-from fastworker.patterns.nng_patterns import ReqRepPattern, BusPattern
+from fastworker.patterns.nng_patterns import BusPattern, ReqRepPattern
 from fastworker.tasks.models import TaskPriority
-from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
+from fastworker.tasks.serializer import SerializationFormat, TaskSerializer
 from fastworker.workers.worker import Worker
 
 logger = logging.getLogger(__name__)

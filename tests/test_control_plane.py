@@ -1,18 +1,17 @@
 """Test cases for FastWorker ControlPlaneWorker."""
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from datetime import datetime, timedelta
 from collections import OrderedDict
+from datetime import datetime
 
-from fastworker.workers.control_plane import ControlPlaneWorker
+import pytest
+
 from fastworker.tasks.models import (
     Task,
+    TaskPriority,
     TaskResult,
     TaskStatus,
-    TaskPriority,
 )
-from fastworker.tasks.registry import task, task_registry
+from fastworker.workers.control_plane import ControlPlaneWorker
 
 
 @pytest.fixture

@@ -1,7 +1,8 @@
 """Tests for OpenTelemetry tracing fallbacks."""
 
 import pytest
-from fastworker.telemetry.tracer import NoOpTracer, NoOpSpan, get_tracer, trace_operation
+
+from fastworker.telemetry.tracer import NoOpSpan, NoOpTracer, get_tracer, trace_operation
 
 
 def test_noop_tracer_start_span_returns_noop_span():

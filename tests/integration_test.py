@@ -1,9 +1,10 @@
 """Integration test for FastWorker."""
 
 import asyncio
-import time
-import subprocess
 import signal
+import subprocess
+import time
+
 from fastworker.clients.client import Client
 from fastworker.tasks.registry import task
 
@@ -103,7 +104,7 @@ asyncio.run(run_worker())
         else:
             error_msg = result.error if result else "No result returned"
             print(f"Error: {error_msg}")
-            assert False, "Task failed"
+            raise AssertionError("Task failed")
 
         print("Integration test passed!")
         client.stop()

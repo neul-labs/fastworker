@@ -1,8 +1,9 @@
 """Test cases for FastWorker ServiceDiscovery."""
 
-import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 import json
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from fastworker.clients.discovery import ServiceDiscovery
 

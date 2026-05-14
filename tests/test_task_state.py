@@ -1,8 +1,9 @@
 """Tests for TaskStateMachine — full task lifecycle."""
 
 import pytest
-from fastworker.tasks.state import TaskStateMachine
+
 from fastworker.tasks.models import TaskStatus
+from fastworker.tasks.state import TaskStateMachine
 
 
 @pytest.fixture

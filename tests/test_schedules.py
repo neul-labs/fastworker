@@ -6,9 +6,9 @@ import pytest
 
 from fastworker.tasks.schedules import (
     ScheduleConfig,
+    _parse_cron_field,
     compute_next_eta,
     cron_next,
-    _parse_cron_field,
 )
 
 

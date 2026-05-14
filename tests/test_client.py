@@ -1,7 +1,9 @@
 """Test cases for FastWorker Client."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from fastworker.clients.client import Client
 from fastworker.tasks.models import TaskPriority, TaskStatus
 

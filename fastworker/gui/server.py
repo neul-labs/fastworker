@@ -8,12 +8,12 @@ import socketserver
 import threading
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler
-from typing import TYPE_CHECKING, Optional, Dict, Any
-from urllib.parse import urlparse, parse_qs
+from typing import TYPE_CHECKING, Any, Dict, Optional
+from urllib.parse import parse_qs, urlparse
 
 if TYPE_CHECKING:
-    from fastworker.workers.control_plane import ControlPlaneWorker
     from fastworker.utils.event_bus import EventBus
+    from fastworker.workers.control_plane import ControlPlaneWorker
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length) if content_length else b"{}"
         try:
-            data = json.loads(body.decode("utf-8"))
+            json.loads(body.decode("utf-8"))
         except json.JSONDecodeError:
             self._send_error_response("Invalid JSON body", 400)
             return
@@ -245,8 +245,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
             return
 
         # Re-queue the task by creating a new one and submitting it
-        from fastworker.tasks.models import Task, TaskStatus
-        from fastworker.tasks.serial import TaskSerializer as _  # noqa
+        from fastworker.tasks.models import TaskPriority
 
         cp.active_tasks.pop(task_id, None)
         cp._cancel_events.pop(task_id, None)

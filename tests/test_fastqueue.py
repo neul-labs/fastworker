@@ -1,8 +1,9 @@
 """Test cases for FastWorker."""
 
 import pytest
-from fastworker.tasks.registry import task_registry, task
+
 from fastworker.tasks.models import Task, TaskPriority
+from fastworker.tasks.registry import task, task_registry
 
 
 @pytest.fixture

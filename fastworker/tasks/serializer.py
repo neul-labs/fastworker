@@ -3,8 +3,8 @@
 import json
 import pickle
 import warnings
-from typing import Any
 from enum import Enum
+from typing import Any
 
 
 class SerializationFormat(str, Enum):

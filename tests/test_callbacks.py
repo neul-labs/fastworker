@@ -1,7 +1,8 @@
 """Test cases for FastWorker callbacks."""
 
 import pytest
-from fastworker.tasks.models import Task, CallbackInfo
+
+from fastworker.tasks.models import CallbackInfo, Task
 from fastworker.tasks.registry import task
 
 

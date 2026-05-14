@@ -1,6 +1,6 @@
-from fastworker.tasks.models import Task, TaskResult, TaskStatus, TaskPriority, CallbackInfo
-from fastworker.tasks.registry import task_registry, task
-from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
+from fastworker.tasks.models import CallbackInfo, Task, TaskPriority, TaskResult, TaskStatus
+from fastworker.tasks.registry import task, task_registry
+from fastworker.tasks.serializer import SerializationFormat, TaskSerializer
 from fastworker.tasks.state import TaskStateMachine
 
 __all__ = [

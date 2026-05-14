@@ -4,21 +4,22 @@ import asyncio
 import logging
 import os
 import signal
-from typing import Dict, Optional, TYPE_CHECKING
+from collections import OrderedDict, deque
 from datetime import datetime
-from collections import deque, OrderedDict
+from typing import TYPE_CHECKING, Dict, Optional
 from urllib.parse import urlparse
 
 from fastworker.patterns.nng_patterns import ReqRepPattern
 from fastworker.tasks.models import (
     Task,
+    TaskPriority,
     TaskResult,
     TaskStatus,
-    TaskPriority,
 )
-from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
-from fastworker.workers.worker import Worker
+from fastworker.tasks.serializer import SerializationFormat, TaskSerializer
 from fastworker.utils.event_bus import EventBus
+from fastworker.workers.state import WorkerState
+from fastworker.workers.worker import Worker
 
 if TYPE_CHECKING:
     from fastworker.gui.server import ManagementServer
@@ -513,7 +514,7 @@ class ControlPlaneWorker(Worker):
                     self._process_and_respond(task, respondent, priority)
                 )
                 self._active_tasks.add(exec_task)
-                exec_task.add_done_callback(lambda t: self._cleanup_task(task.id))
+                exec_task.add_done_callback(lambda t, tid=task.id: self._cleanup_task(tid))
 
             except Exception as e:
                 if self.lifecycle.state == WorkerState.RUNNING:

@@ -1,7 +1,8 @@
 """NNG patterns implementation for FastWorker."""
 
-import pynng
 from enum import Enum
+
+import pynng
 
 
 class PatternType(Enum):

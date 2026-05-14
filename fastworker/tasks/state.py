@@ -1,7 +1,7 @@
 """Task state machine — formal lifecycle for FastWorker tasks."""
 
-from fastworker.utils.state_machine import StateMachine
 from fastworker.tasks.models import TaskStatus
+from fastworker.utils.state_machine import StateMachine
 
 # Allowed transitions for the task state machine
 _TASK_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {

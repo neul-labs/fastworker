@@ -1,12 +1,7 @@
 """Tests for the Management GUI server."""
 
-import json
-import pytest
-from unittest.mock import MagicMock, patch, PropertyMock
-from datetime import datetime
 from collections import OrderedDict
-
-from fastworker.tasks.models import TaskResult, TaskStatus
+from unittest.mock import MagicMock
 
 
 class FakeHandler:

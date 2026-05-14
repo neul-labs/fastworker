@@ -15,8 +15,8 @@ Configuration via environment variables:
 - OTEL_EXPORTER_OTLP_ENDPOINT: OTLP endpoint (default: http://localhost:4317)
 """
 
-from .tracer import get_tracer, trace_task, trace_operation
 from .metrics import get_meter, record_task_metric, record_worker_metric
+from .tracer import get_tracer, trace_operation, trace_task
 
 __all__ = [
     "get_tracer",

@@ -1,15 +1,14 @@
 """Tests for OpenTelemetry metrics fallbacks."""
 
-import pytest
 from fastworker.telemetry.metrics import (
-    NoOpMeter,
     NoOpCounter,
     NoOpHistogram,
+    NoOpMeter,
     NoOpUpDownCounter,
     get_meter,
+    record_queue_size,
     record_task_metric,
     record_worker_metric,
-    record_queue_size,
 )
 
 
