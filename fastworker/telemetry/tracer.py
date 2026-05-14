@@ -20,18 +20,14 @@ try:
     OTEL_AVAILABLE = True
 except ImportError:
     OTEL_AVAILABLE = False
-    logger.debug(
-        "OpenTelemetry not available. Install with: pip install fastworker[telemetry]"
-    )
+    logger.debug("OpenTelemetry not available. Install with: pip install fastworker[telemetry]")
 
 
 class NoOpTracer:
     """No-op tracer when OpenTelemetry is not available or disabled."""
 
     @contextmanager
-    def start_as_current_span(
-        self, name: str, attributes: Optional[Dict[str, Any]] = None
-    ):
+    def start_as_current_span(self, name: str, attributes: Optional[Dict[str, Any]] = None):
         """No-op context manager."""
         yield None
 
@@ -87,18 +83,14 @@ def _initialize_tracer():
         return
 
     if not _telemetry_enabled:
-        logger.debug(
-            "Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable."
-        )
+        logger.debug("Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable.")
         _tracer = NoOpTracer()
         return
 
     try:
         # Get configuration from environment
         service_name = os.getenv("OTEL_SERVICE_NAME", "fastworker")
-        otlp_endpoint = os.getenv(
-            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
-        )
+        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
 
         # Create resource with service name
         resource = Resource.create({"service.name": service_name})

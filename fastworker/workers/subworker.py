@@ -52,9 +52,7 @@ class SubWorker(Worker):
                 "FASTWORKER_CONTROL_PLANE_ADDRESS environment variable"
             )
 
-        base_address = base_address or os.getenv(
-            "FASTWORKER_BASE_ADDRESS", "tcp://127.0.0.1:5555"
-        )
+        base_address = base_address or os.getenv("FASTWORKER_BASE_ADDRESS", "tcp://127.0.0.1:5555")
         discovery_address = discovery_address or os.getenv(
             "FASTWORKER_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550"
         )
@@ -63,15 +61,16 @@ class SubWorker(Worker):
         if serialization_format is None:
             format_str = os.getenv("FASTWORKER_SERIALIZATION_FORMAT", "JSON").upper()
             serialization_format = (
-                SerializationFormat.PICKLE
-                if format_str == "PICKLE"
-                else SerializationFormat.JSON
+                SerializationFormat.PICKLE if format_str == "PICKLE" else SerializationFormat.JSON
             )
         if concurrency is None:
             concurrency = int(os.getenv("FASTWORKER_WORKER_CONCURRENCY", "1"))
 
         super().__init__(
-            worker_id, base_address, discovery_address, serialization_format,
+            worker_id,
+            base_address,
+            discovery_address,
+            serialization_format,
             concurrency=concurrency,
         )
 
@@ -155,15 +154,9 @@ class SubWorker(Worker):
             asyncio.create_task(
                 self._process_tasks(self.critical_respondent, TaskPriority.CRITICAL)
             ),
-            asyncio.create_task(
-                self._process_tasks(self.high_respondent, TaskPriority.HIGH)
-            ),
-            asyncio.create_task(
-                self._process_tasks(self.normal_respondent, TaskPriority.NORMAL)
-            ),
-            asyncio.create_task(
-                self._process_tasks(self.low_respondent, TaskPriority.LOW)
-            ),
+            asyncio.create_task(self._process_tasks(self.high_respondent, TaskPriority.HIGH)),
+            asyncio.create_task(self._process_tasks(self.normal_respondent, TaskPriority.NORMAL)),
+            asyncio.create_task(self._process_tasks(self.low_respondent, TaskPriority.LOW)),
         ]
 
         # Wait for shutdown
@@ -186,15 +179,11 @@ class SubWorker(Worker):
                 "status": "active",
             }
 
-            registration_data = TaskSerializer.serialize(
-                registration, self.serialization_format
-            )
+            registration_data = TaskSerializer.serialize(registration, self.serialization_format)
             await self.control_plane_registry.send(registration_data)
 
             # Wait for acknowledgment
-            ack_data = await asyncio.wait_for(
-                self.control_plane_registry.recv(), timeout=5.0
-            )
+            ack_data = await asyncio.wait_for(self.control_plane_registry.recv(), timeout=5.0)
             ack = TaskSerializer.deserialize(ack_data, self.serialization_format)
 
             if ack.get("status") == "registered":
@@ -204,9 +193,7 @@ class SubWorker(Worker):
                 logger.warning(f"Registration failed for subworker {self.worker_id}")
 
         except asyncio.TimeoutError:
-            logger.error(
-                f"Timeout registering subworker {self.worker_id} with control plane"
-            )
+            logger.error(f"Timeout registering subworker {self.worker_id} with control plane")
             self.registered = False
         except Exception as e:
             logger.error(f"Error registering with control plane: {e}")
@@ -228,18 +215,14 @@ class SubWorker(Worker):
                             "status": "active",
                             "heartbeat": True,
                         }
-                        update_data = TaskSerializer.serialize(
-                            update, self.serialization_format
-                        )
+                        update_data = TaskSerializer.serialize(update, self.serialization_format)
                         await self.control_plane_registry.send(update_data)
                         # Wait for ack (non-blocking, with timeout)
                         try:
                             ack_data = await asyncio.wait_for(
                                 self.control_plane_registry.recv(), timeout=1.0
                             )
-                            ack = TaskSerializer.deserialize(
-                                ack_data, self.serialization_format
-                            )
+                            ack = TaskSerializer.deserialize(ack_data, self.serialization_format)
                             if ack.get("status") != "registered":
                                 self.registered = False
                         except asyncio.TimeoutError:

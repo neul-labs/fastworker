@@ -13,17 +13,22 @@ from fastworker.patterns.nng_patterns import (
 
 # --- ReqRepPattern ---
 
+
 def test_reqrep_server_uses_rep0():
-    with patch("fastworker.patterns.nng_patterns.pynng.Rep0"), \
-         patch("fastworker.patterns.nng_patterns.pynng.Req0") as MockReq:
+    with (
+        patch("fastworker.patterns.nng_patterns.pynng.Rep0"),
+        patch("fastworker.patterns.nng_patterns.pynng.Req0") as MockReq,
+    ):
         p = ReqRepPattern("tcp://127.0.0.1:5555", is_server=True)
         assert p.is_server is True
         assert not MockReq.called
 
 
 def test_reqrep_client_uses_req0():
-    with patch("fastworker.patterns.nng_patterns.pynng.Req0"), \
-         patch("fastworker.patterns.nng_patterns.pynng.Rep0") as MockRep:
+    with (
+        patch("fastworker.patterns.nng_patterns.pynng.Req0"),
+        patch("fastworker.patterns.nng_patterns.pynng.Rep0") as MockRep,
+    ):
         p = ReqRepPattern("tcp://127.0.0.1:5555", is_server=False)
         assert p.is_server is False
         assert not MockRep.called
@@ -36,6 +41,7 @@ def test_reqrep_close_when_no_socket():
 
 
 # --- BusPattern ---
+
 
 def test_bus_listen_uses_bus0():
     with patch("fastworker.patterns.nng_patterns.pynng.Bus0"):
@@ -51,6 +57,7 @@ def test_bus_dial_uses_bus0():
 
 # --- PairPattern ---
 
+
 def test_pair_server_uses_pair0():
     with patch("fastworker.patterns.nng_patterns.pynng.Pair0"):
         p = PairPattern("tcp://127.0.0.1:5555", is_server=True)
@@ -65,23 +72,29 @@ def test_pair_client_uses_pair0():
 
 # --- SurveyorRespondentPattern ---
 
+
 def test_surveyor_uses_surveyor0():
-    with patch("fastworker.patterns.nng_patterns.pynng.Surveyor0"), \
-         patch("fastworker.patterns.nng_patterns.pynng.Respondent0") as MockR:
+    with (
+        patch("fastworker.patterns.nng_patterns.pynng.Surveyor0"),
+        patch("fastworker.patterns.nng_patterns.pynng.Respondent0") as MockR,
+    ):
         p = SurveyorRespondentPattern("tcp://127.0.0.1:5555", is_surveyor=True)
         assert p.is_surveyor is True
         assert not MockR.called
 
 
 def test_respondent_uses_respondent0():
-    with patch("fastworker.patterns.nng_patterns.pynng.Respondent0"), \
-         patch("fastworker.patterns.nng_patterns.pynng.Surveyor0") as MockS:
+    with (
+        patch("fastworker.patterns.nng_patterns.pynng.Respondent0"),
+        patch("fastworker.patterns.nng_patterns.pynng.Surveyor0") as MockS,
+    ):
         p = SurveyorRespondentPattern("tcp://127.0.0.1:5555", is_surveyor=False)
         assert p.is_surveyor is False
         assert not MockS.called
 
 
 # --- send/recv/close delegation ---
+
 
 @pytest.mark.asyncio
 async def test_reqrep_send_delegates():

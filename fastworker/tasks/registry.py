@@ -44,8 +44,12 @@ class TaskRegistry:
             logger.warning(f"Task {task_name} is already registered. Overwriting.")
 
         self._tasks[task_name] = TaskInfo(
-            func=func, name=task_name, module=func.__module__,
-            schedule=schedule, before=before, after=after,
+            func=func,
+            name=task_name,
+            module=func.__module__,
+            schedule=schedule,
+            before=before,
+            after=after,
         )
         logger.info(f"Registered task: {task_name}")
         return func
@@ -69,11 +73,7 @@ class TaskRegistry:
 
     def get_periodic_tasks(self) -> Dict[str, TaskInfo]:
         """Get tasks that have a schedule configured."""
-        return {
-            name: info
-            for name, info in self._tasks.items()
-            if info.schedule is not None
-        }
+        return {name: info for name, info in self._tasks.items() if info.schedule is not None}
 
 
 # Global task registry
@@ -114,7 +114,11 @@ def task(
     def decorator(f: Callable) -> Callable:
         task_name = f.__name__
         task_registry.register(
-            f, task_name, schedule=schedule, before=before, after=after,
+            f,
+            task_name,
+            schedule=schedule,
+            before=before,
+            after=after,
         )
         return f
 
@@ -122,10 +126,15 @@ def task(
     if callable(func_or_name):
         return decorator(func_or_name)
     else:
+
         def named_decorator(f: Callable) -> Callable:
             task_name = func_or_name or f.__name__
             task_registry.register(
-                f, task_name, schedule=schedule, before=before, after=after,
+                f,
+                task_name,
+                schedule=schedule,
+                before=before,
+                after=after,
             )
             return f
 

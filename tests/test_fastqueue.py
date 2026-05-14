@@ -9,9 +9,7 @@ from fastworker.tasks.registry import task, task_registry
 @pytest.fixture
 def sample_task_obj():
     """Create a sample task object."""
-    return Task(
-        name="sample_task", args=(2, 3), kwargs={}, priority=TaskPriority.NORMAL
-    )
+    return Task(name="sample_task", args=(2, 3), kwargs={}, priority=TaskPriority.NORMAL)
 
 
 def test_task_registry():

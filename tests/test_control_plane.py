@@ -100,6 +100,7 @@ def test_result_cache_ttl_expiration(control_plane):
 
     # Wait for TTL to expire
     import asyncio
+
     asyncio.get_event_loop().run_until_complete(asyncio.sleep(1.1))
 
     # Result should be expired

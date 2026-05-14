@@ -80,9 +80,7 @@ async def test_delay_method():
 
     # delay() returns a task ID (string), not a TaskResult
     # It creates the task and submits it in the background
-    task_id = await client.delay(
-        "test_task", "arg1", "arg2", priority=TaskPriority.HIGH
-    )
+    task_id = await client.delay("test_task", "arg1", "arg2", priority=TaskPriority.HIGH)
 
     # task_id should be a non-empty string
     assert isinstance(task_id, str)

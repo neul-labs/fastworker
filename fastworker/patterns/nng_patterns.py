@@ -47,9 +47,7 @@ class ReqRepPattern:
 class PubSubPattern:
     """Publish/Subscribe pattern for priority queues."""
 
-    def __init__(
-        self, address: str, is_publisher: bool = False, subscribe_topic: bytes = b""
-    ):
+    def __init__(self, address: str, is_publisher: bool = False, subscribe_topic: bytes = b""):
         self.address = address
         self.is_publisher = is_publisher
         self.subscribe_topic = subscribe_topic

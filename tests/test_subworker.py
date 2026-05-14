@@ -1,6 +1,5 @@
 """Test cases for FastWorker SubWorker."""
 
-
 import pytest
 
 from fastworker.workers.subworker import SubWorker
@@ -93,9 +92,9 @@ def test_subworker_priority_ports():
 
     # Base port is 5561
     assert "5561" in subworker.critical_respondent.address  # base_port
-    assert "5562" in subworker.high_respondent.address     # base_port + 1
-    assert "5563" in subworker.normal_respondent.address   # base_port + 2
-    assert "5564" in subworker.low_respondent.address      # base_port + 3
+    assert "5562" in subworker.high_respondent.address  # base_port + 1
+    assert "5563" in subworker.normal_respondent.address  # base_port + 2
+    assert "5564" in subworker.low_respondent.address  # base_port + 3
 
 
 def test_subworker_not_running_by_default():

@@ -85,16 +85,12 @@ def test_empty_data_serialization():
 
     # JSON
     json_serialized = TaskSerializer.serialize(empty_dict, SerializationFormat.JSON)
-    json_deserialized = TaskSerializer.deserialize(
-        json_serialized, SerializationFormat.JSON
-    )
+    json_deserialized = TaskSerializer.deserialize(json_serialized, SerializationFormat.JSON)
     assert json_deserialized == empty_dict
 
     # Pickle
     pickle_serialized = TaskSerializer.serialize(empty_list, SerializationFormat.PICKLE)
-    pickle_deserialized = TaskSerializer.deserialize(
-        pickle_serialized, SerializationFormat.PICKLE
-    )
+    pickle_deserialized = TaskSerializer.deserialize(pickle_serialized, SerializationFormat.PICKLE)
     assert pickle_deserialized == empty_list
 
 
@@ -104,16 +100,12 @@ def test_none_value_serialization():
 
     # JSON
     json_serialized = TaskSerializer.serialize(data, SerializationFormat.JSON)
-    json_deserialized = TaskSerializer.deserialize(
-        json_serialized, SerializationFormat.JSON
-    )
+    json_deserialized = TaskSerializer.deserialize(json_serialized, SerializationFormat.JSON)
     assert json_deserialized == data
 
     # Pickle
     pickle_serialized = TaskSerializer.serialize(data, SerializationFormat.PICKLE)
-    pickle_deserialized = TaskSerializer.deserialize(
-        pickle_serialized, SerializationFormat.PICKLE
-    )
+    pickle_deserialized = TaskSerializer.deserialize(pickle_serialized, SerializationFormat.PICKLE)
     assert pickle_deserialized == data
 
 

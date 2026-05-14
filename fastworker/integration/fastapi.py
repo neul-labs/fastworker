@@ -103,8 +103,12 @@ class FastWorker:
     ) -> str:
         """Submit a task non-blocking, return task ID immediately."""
         return await self.client.delay(
-            task_name, *args, priority=priority, eta=eta,
-            countdown=countdown, **kwargs,
+            task_name,
+            *args,
+            priority=priority,
+            eta=eta,
+            countdown=countdown,
+            **kwargs,
         )
 
     async def submit_task(
@@ -118,8 +122,12 @@ class FastWorker:
     ) -> TaskResult:
         """Submit a task and wait for result (blocking)."""
         return await self.client.submit_task(
-            task_name, args=args, kwargs=kwargs,
-            priority=priority, eta=eta, countdown=countdown,
+            task_name,
+            args=args,
+            kwargs=kwargs,
+            priority=priority,
+            eta=eta,
+            countdown=countdown,
         )
 
     async def delay_with_callback(
@@ -135,9 +143,14 @@ class FastWorker:
     ) -> str:
         """Submit a task with callback, non-blocking."""
         return await self.client.delay_with_callback(
-            task_name, callback_address, *args,
-            callback_data=callback_data, priority=priority,
-            eta=eta, countdown=countdown, **kwargs,
+            task_name,
+            callback_address,
+            *args,
+            callback_data=callback_data,
+            priority=priority,
+            eta=eta,
+            countdown=countdown,
+            **kwargs,
         )
 
     async def submit_batch(
@@ -147,7 +160,8 @@ class FastWorker:
     ) -> list[str]:
         """Submit multiple tasks atomically."""
         return await self.client.submit_batch(
-            tasks, default_priority=default_priority,
+            tasks,
+            default_priority=default_priority,
         )
 
     async def cancel_task(self, task_id: str) -> bool:

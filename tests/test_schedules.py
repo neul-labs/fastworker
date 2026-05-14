@@ -64,7 +64,9 @@ class TestCronNext:
     def test_weekdays_only(self):
         now = datetime(2026, 1, 2, 12, 0, 0)  # Friday
         result = cron_next("0 9 * * 1-5", now)
-        assert result == datetime(2026, 1, 3, 9, 0)  # Saturday, but wait - Jan 2 2026 is a Friday, next should be Monday Jan 5... actually let me check
+        assert (
+            result == datetime(2026, 1, 3, 9, 0)
+        )  # Saturday, but wait - Jan 2 2026 is a Friday, next should be Monday Jan 5... actually let me check
 
     def test_invalid_expression(self):
         with pytest.raises(ValueError, match="must have 5 fields"):

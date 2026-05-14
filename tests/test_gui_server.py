@@ -32,46 +32,56 @@ class FakeHandler:
 
     def _handle_status(self):
         cp = self.control_plane
-        self.send_json_response({
-            "worker_id": cp.worker_id,
-            "active_workers": 1,
-            "queued_tasks": 0,
-            "active_tasks": 0,
-            "cached_results": 0,
-            "uptime_seconds": None,
-        })
+        self.send_json_response(
+            {
+                "worker_id": cp.worker_id,
+                "active_workers": 1,
+                "queued_tasks": 0,
+                "active_tasks": 0,
+                "cached_results": 0,
+                "uptime_seconds": None,
+            }
+        )
 
     def _handle_workers(self):
         cp = self.control_plane
-        self.send_json_response({
-            "total_workers": 1,
-            "workers": [{"id": cp.worker_id, "address": cp.base_address, "status": "active"}],
-        })
+        self.send_json_response(
+            {
+                "total_workers": 1,
+                "workers": [{"id": cp.worker_id, "address": cp.base_address, "status": "active"}],
+            }
+        )
 
     def _handle_tasks(self):
-        self.send_json_response({
-            "tasks": [],
-            "total": 0,
-            "limit": 50,
-            "offset": 0,
-        })
+        self.send_json_response(
+            {
+                "tasks": [],
+                "total": 0,
+                "limit": 50,
+                "offset": 0,
+            }
+        )
 
     def _handle_cache_stats(self):
-        self.send_json_response({
-            "max_size": 10000,
-            "current_size": 0,
-            "ttl_seconds": 3600,
-        })
+        self.send_json_response(
+            {
+                "max_size": 10000,
+                "current_size": 0,
+                "ttl_seconds": 3600,
+            }
+        )
 
     def _handle_queue_stats(self):
-        self.send_json_response({
-            "queues": {
-                "critical": {"size": 0, "next_tasks": []},
-                "high": {"size": 0, "next_tasks": []},
-                "normal": {"size": 0, "next_tasks": []},
-                "low": {"size": 0, "next_tasks": []},
+        self.send_json_response(
+            {
+                "queues": {
+                    "critical": {"size": 0, "next_tasks": []},
+                    "high": {"size": 0, "next_tasks": []},
+                    "normal": {"size": 0, "next_tasks": []},
+                    "low": {"size": 0, "next_tasks": []},
+                }
             }
-        })
+        )
 
     def _handle_registered_tasks(self):
         self.send_json_response({"tasks": []})

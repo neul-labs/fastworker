@@ -54,7 +54,8 @@ async def welcome_user(user_id: int, email: str):
 async def create_report(report_type: str, params: dict):
     """Blocking: waits for the report to finish."""
     result = await fw.submit_task(
-        "generate_report", args=(report_type, params),
+        "generate_report",
+        args=(report_type, params),
         priority=TaskPriority.HIGH,
     )
     return {"status": result.status.value, "result": result.result}
@@ -64,8 +65,10 @@ async def create_report(report_type: str, params: dict):
 async def trigger_cleanup():
     """With callback: get notified when cleanup completes."""
     task_id = await fw.delay_with_callback(
-        "cleanup_temp_files", "tcp://127.0.0.1:6000",
-        "/tmp", priority=TaskPriority.LOW,
+        "cleanup_temp_files",
+        "tcp://127.0.0.1:6000",
+        "/tmp",
+        priority=TaskPriority.LOW,
         callback_data={"notify": "admin"},
     )
     return {"task_id": task_id, "status": "scheduled"}
@@ -74,11 +77,13 @@ async def trigger_cleanup():
 @app.post("/tasks/batch")
 async def batch_submit():
     """Submit multiple tasks atomically."""
-    task_ids = await fw.submit_batch([
-        {"task_name": "send_welcome_email", "args": (101, "a@b.com")},
-        {"task_name": "send_welcome_email", "args": (102, "c@d.com")},
-        {"task_name": "cleanup_temp_files", "args": ("/tmp",)},
-    ])
+    task_ids = await fw.submit_batch(
+        [
+            {"task_name": "send_welcome_email", "args": (101, "a@b.com")},
+            {"task_name": "send_welcome_email", "args": (102, "c@d.com")},
+            {"task_name": "cleanup_temp_files", "args": ("/tmp",)},
+        ]
+    )
     return {"task_ids": task_ids, "count": len(task_ids)}
 
 

@@ -49,9 +49,7 @@ class Worker:
         self.serialization_format = serialization_format
         self.task_timeout = task_timeout
         self.shutdown_timeout = shutdown_timeout
-        self.concurrency = concurrency or int(
-            os.getenv("FASTWORKER_WORKER_CONCURRENCY", "1")
-        )
+        self.concurrency = concurrency or int(os.getenv("FASTWORKER_WORKER_CONCURRENCY", "1"))
         self.shutdown_event = asyncio.Event()
 
         # Worker lifecycle state machine
@@ -149,15 +147,9 @@ class Worker:
             asyncio.create_task(
                 self._process_tasks(self.critical_respondent, TaskPriority.CRITICAL)
             ),
-            asyncio.create_task(
-                self._process_tasks(self.high_respondent, TaskPriority.HIGH)
-            ),
-            asyncio.create_task(
-                self._process_tasks(self.normal_respondent, TaskPriority.NORMAL)
-            ),
-            asyncio.create_task(
-                self._process_tasks(self.low_respondent, TaskPriority.LOW)
-            ),
+            asyncio.create_task(self._process_tasks(self.high_respondent, TaskPriority.HIGH)),
+            asyncio.create_task(self._process_tasks(self.normal_respondent, TaskPriority.NORMAL)),
+            asyncio.create_task(self._process_tasks(self.low_respondent, TaskPriority.LOW)),
         ]
 
         # Wait for shutdown signal
@@ -173,9 +165,7 @@ class Worker:
                 f"Waiting up to {self.shutdown_timeout}s for "
                 f"{len(self._active_tasks)} in-flight tasks"
             )
-            done, pending = await asyncio.wait(
-                self._active_tasks, timeout=self.shutdown_timeout
-            )
+            done, pending = await asyncio.wait(self._active_tasks, timeout=self.shutdown_timeout)
             for t in pending:
                 logger.warning("Cancelling in-flight task during shutdown")
                 t.cancel()
@@ -220,9 +210,7 @@ class Worker:
                         peer_id = parts[1]
                         peer_address = parts[2]
                         self.peers.add((peer_id, peer_address))
-                        logger.info(
-                            f"Discovered peer worker: {peer_id} at {peer_address}"
-                        )
+                        logger.info(f"Discovered peer worker: {peer_id} at {peer_address}")
 
             except Exception as e:
                 if self.running:
@@ -248,9 +236,7 @@ class Worker:
                 )
 
                 # Spawn execution as a tracked task
-                exec_task = asyncio.create_task(
-                    self._execute_and_respond(task, respondent)
-                )
+                exec_task = asyncio.create_task(self._execute_and_respond(task, respondent))
                 self._active_tasks.add(exec_task)
                 exec_task.add_done_callback(self._active_tasks.discard)
 
@@ -264,9 +250,7 @@ class Worker:
         """Execute a task and send the result back."""
         async with self._concurrency_semaphore:
             result = await self._execute_task(task)
-        result_data = TaskSerializer.serialize(
-            result.model_dump(), self.serialization_format
-        )
+        result_data = TaskSerializer.serialize(result.model_dump(), self.serialization_format)
         await respondent.send(result_data)
 
     async def _execute_task(self, task: Task) -> TaskResult:
@@ -350,9 +334,7 @@ class Worker:
                     callback=task.callback,
                 )
 
-                logger.info(
-                    f"Task {task.id} completed successfully in {duration_ms:.2f}ms"
-                )
+                logger.info(f"Task {task.id} completed successfully in {duration_ms:.2f}ms")
 
                 record_task_metric(
                     "completed",
@@ -426,21 +408,15 @@ class Worker:
                     "result": task_result.result,
                     "error": task_result.error,
                     "started_at": (
-                        task_result.started_at.isoformat()
-                        if task_result.started_at
-                        else None
+                        task_result.started_at.isoformat() if task_result.started_at else None
                     ),
                     "completed_at": (
-                        task_result.completed_at.isoformat()
-                        if task_result.completed_at
-                        else None
+                        task_result.completed_at.isoformat() if task_result.completed_at else None
                     ),
                     "callback_data": task_result.callback.data,
                 }
 
-                serialized_data = TaskSerializer.serialize(
-                    callback_data, self.serialization_format
-                )
+                serialized_data = TaskSerializer.serialize(callback_data, self.serialization_format)
                 await callback_socket.send(serialized_data)
 
                 logger.info(

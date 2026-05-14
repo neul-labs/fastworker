@@ -51,9 +51,7 @@ class Client:
         if serialization_format is None:
             format_str = os.getenv("FASTWORKER_SERIALIZATION_FORMAT", "JSON").upper()
             self.serialization_format = (
-                SerializationFormat.PICKLE
-                if format_str == "PICKLE"
-                else SerializationFormat.JSON
+                SerializationFormat.PICKLE if format_str == "PICKLE" else SerializationFormat.JSON
             )
         else:
             self.serialization_format = serialization_format
@@ -92,10 +90,7 @@ class Client:
         # Give more time to discover workers (especially if control plane starts after client)
         logger.info("Waiting for worker discovery...")
         await asyncio.sleep(2.0)  # Increased from 0.5 to 2.0 seconds
-        logger.info(
-            f"Client started. Discovered {len(self.workers)} workers: "
-            f"{list(self.workers)}"
-        )
+        logger.info(f"Client started. Discovered {len(self.workers)} workers: {list(self.workers)}")
 
     async def _listen_for_workers(self):
         """Listen for worker announcements."""
@@ -114,9 +109,7 @@ class Client:
                         worker_id = parts[1]
                         worker_address = parts[2]  # This is the full address
                         self.workers.add((worker_id, worker_address))
-                        logger.info(
-                            f"Discovered worker: {worker_id} at {worker_address}"
-                        )
+                        logger.info(f"Discovered worker: {worker_id} at {worker_address}")
                     else:
                         logger.warning(f"Invalid WORKER_ANNOUNCE format: {message}")
 
@@ -129,9 +122,7 @@ class Client:
                     break
             except Exception as e:
                 if self.running:
-                    logger.error(
-                        f"Unexpected error in worker discovery: {e}", exc_info=True
-                    )
+                    logger.error(f"Unexpected error in worker discovery: {e}", exc_info=True)
                 if not self.running:
                     break
 
@@ -203,12 +194,8 @@ class Client:
                     await requester.send(task_data)
 
                     # Receive result with timeout
-                    result_data = await asyncio.wait_for(
-                        requester.recv(), timeout=self.timeout
-                    )
-                    result_dict = TaskSerializer.deserialize(
-                        result_data, self.serialization_format
-                    )
+                    result_data = await asyncio.wait_for(requester.recv(), timeout=self.timeout)
+                    result_dict = TaskSerializer.deserialize(result_data, self.serialization_format)
                     result = TaskResult(**result_dict)
 
                     # Store result
@@ -237,14 +224,10 @@ class Client:
             except Exception as e:
                 logger.error(f"Error submitting task: {e}")
                 if attempt < self.retries:
-                    logger.warning(
-                        f"Retrying... (attempt {attempt + 1}/{self.retries})"
-                    )
+                    logger.warning(f"Retrying... (attempt {attempt + 1}/{self.retries})")
                     await asyncio.sleep(0.1 * (2**attempt))  # Exponential backoff
                 else:
-                    result = TaskResult(
-                        task_id=task.id, status=TaskStatus.FAILURE, error=str(e)
-                    )
+                    result = TaskResult(task_id=task.id, status=TaskStatus.FAILURE, error=str(e))
                     self.task_results[task.id] = result
                     return result
 
@@ -270,8 +253,11 @@ class Client:
             eta = datetime.now() + timedelta(seconds=countdown)
 
         task = Task(
-            name=task_name, args=args, kwargs=task_kwargs,
-            priority=priority, eta=eta,
+            name=task_name,
+            args=args,
+            kwargs=task_kwargs,
+            priority=priority,
+            eta=eta,
         )
         return await self._submit_task_internal(task)
 
@@ -299,14 +285,15 @@ class Client:
             "client.submit_task",
             attributes={
                 "task.name": task_name,
-                "task.priority": (
-                    priority.value if hasattr(priority, "value") else str(priority)
-                ),
+                "task.priority": (priority.value if hasattr(priority, "value") else str(priority)),
             },
         ):
             task = Task(
-                name=task_name, args=args, kwargs=kwargs,
-                priority=priority, eta=eta,
+                name=task_name,
+                args=args,
+                kwargs=kwargs,
+                priority=priority,
+                eta=eta,
             )
 
             record_task_metric("submitted", task_name, priority=task.priority.value)
@@ -420,8 +407,11 @@ class Client:
                 eta = datetime.now() + timedelta(seconds=countdown)
 
             task = Task(
-                name=task_name, args=args, kwargs=kwargs,
-                priority=priority, eta=eta,
+                name=task_name,
+                args=args,
+                kwargs=kwargs,
+                priority=priority,
+                eta=eta,
             )
             task_objects.append(task)
 
@@ -461,20 +451,12 @@ class Client:
                 requester = ReqRepPattern(priority_address, is_server=False)
                 await requester.start()
                 try:
-                    serialized = TaskSerializer.serialize(
-                        batch_data, self.serialization_format
-                    )
+                    serialized = TaskSerializer.serialize(batch_data, self.serialization_format)
                     await requester.send(serialized)
-                    response_data = await asyncio.wait_for(
-                        requester.recv(), timeout=self.timeout
-                    )
-                    response = TaskSerializer.deserialize(
-                        response_data, self.serialization_format
-                    )
+                    response_data = await asyncio.wait_for(requester.recv(), timeout=self.timeout)
+                    response = TaskSerializer.deserialize(response_data, self.serialization_format)
                     if response.get("batch_accepted"):
-                        logger.info(
-                            f"Batch of {len(task_ids)} tasks accepted: {task_ids}"
-                        )
+                        logger.info(f"Batch of {len(task_ids)} tasks accepted: {task_ids}")
                     return task_ids
                 finally:
                     requester.close()
@@ -482,12 +464,12 @@ class Client:
                 if attempt == self.retries:
                     logger.error("Batch submission timed out after retries")
                     return task_ids
-                await asyncio.sleep(0.1 * (2 ** attempt))
+                await asyncio.sleep(0.1 * (2**attempt))
             except Exception as e:
                 logger.error(f"Error submitting batch: {e}")
                 if attempt == self.retries:
                     return task_ids
-                await asyncio.sleep(0.1 * (2 ** attempt))
+                await asyncio.sleep(0.1 * (2**attempt))
 
         return task_ids
 
@@ -566,17 +548,13 @@ class Client:
 
                 # Receive response
                 response_data = await requester.recv()
-                response = TaskSerializer.deserialize(
-                    response_data, self.serialization_format
-                )
+                response = TaskSerializer.deserialize(response_data, self.serialization_format)
 
                 if response.get("found"):
                     result_dict = response.get("result")
                     return TaskResult(**result_dict)
                 else:
-                    logger.debug(
-                        f"Result not found for task {task_id}: {response.get('error')}"
-                    )
+                    logger.debug(f"Result not found for task {task_id}: {response.get('error')}")
                     return None
 
             finally:

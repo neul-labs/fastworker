@@ -223,9 +223,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         if cancelled:
             self._send_json_response({"task_id": task_id, "cancelled": True})
         else:
-            self._send_error_response(
-                f"Task {task_id} not found or already terminal", 404
-            )
+            self._send_error_response(f"Task {task_id} not found or already terminal", 404)
 
     def _handle_retry(self, task_id: str):
         """Retry a failed task by ID (POST endpoint)."""
@@ -259,9 +257,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
             return
 
         cp = self.control_plane
-        active_workers = sum(
-            1 for w in cp.subworkers.values() if w["status"] == "active"
-        )
+        active_workers = sum(1 for w in cp.subworkers.values() if w["status"] == "active")
         inactive_workers = len(cp.subworkers) - active_workers
         total_queued = sum(len(q) for q in cp.task_queue.values())
 
@@ -365,9 +361,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
                     "status": result.status.value,
                     "result": str(result.result)[:100] if result.result else None,
                     "error": result.error,
-                    "started_at": (
-                        result.started_at.isoformat() if result.started_at else None
-                    ),
+                    "started_at": (result.started_at.isoformat() if result.started_at else None),
                     "completed_at": (
                         result.completed_at.isoformat() if result.completed_at else None
                     ),
@@ -376,9 +370,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
                 }
             )
 
-        self._send_json_response(
-            {"tasks": tasks, "total": total, "limit": limit, "offset": offset}
-        )
+        self._send_json_response({"tasks": tasks, "total": total, "limit": limit, "offset": offset})
 
     def _handle_cache_stats(self):
         if not self.control_plane:
@@ -415,10 +407,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         for priority, task_q in cp.task_queue.items():
             queues[priority.value] = {
                 "count": len(task_q),
-                "tasks": [
-                    {"id": task.id, "name": task.name}
-                    for task in list(task_q)[:10]
-                ],
+                "tasks": [{"id": task.id, "name": task.name} for task in list(task_q)[:10]],
             }
 
         self._send_json_response(
@@ -437,11 +426,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
             task_info = {
                 "name": name,
                 "module": task_func.__module__ if task_func else None,
-                "doc": (
-                    task_func.__doc__.strip()
-                    if task_func and task_func.__doc__
-                    else None
-                ),
+                "doc": (task_func.__doc__.strip() if task_func and task_func.__doc__ else None),
             }
             tasks.append(task_info)
 
@@ -468,9 +453,7 @@ class ManagementServer:
         self.sse_queues: list[queue.Queue] = []
 
         self.api_key = os.getenv("FASTWORKER_GUI_API_KEY")
-        self.allowed_origins = os.getenv(
-            "FASTWORKER_GUI_CORS_ORIGIN", "*"
-        )
+        self.allowed_origins = os.getenv("FASTWORKER_GUI_CORS_ORIGIN", "*")
 
     def start(self):
         if self._running:
@@ -496,13 +479,9 @@ class ManagementServer:
 
             # Start background task to bridge EventBus → SSE queues
             if self.event_bus:
-                threading.Thread(
-                    target=self._bridge_events, daemon=True
-                ).start()
+                threading.Thread(target=self._bridge_events, daemon=True).start()
 
-            self.thread = threading.Thread(
-                target=self.server.serve_forever, daemon=True
-            )
+            self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self.thread.start()
 
             logger.info(f"Management GUI started at http://{self.host}:{self.port}")

@@ -163,7 +163,7 @@ def list_tasks(args):
             for name, info in periodic.items():
                 config = info.schedule
                 if config.cron_expression:
-                    schedule_str = f"cron=\"{config.cron_expression}\""
+                    schedule_str = f'cron="{config.cron_expression}"'
                 else:
                     schedule_str = f"repeat_interval={config.repeat_interval}s"
                 limits = []
@@ -222,7 +222,7 @@ def _print_task_tree():
                 label = info.name
                 if info.schedule:
                     if info.schedule.cron_expression:
-                        label += f" (cron=\"{info.schedule.cron_expression}\")"
+                        label += f' (cron="{info.schedule.cron_expression}")'
                     else:
                         label += f" (repeat_interval={info.schedule.repeat_interval}s)"
                 print(f"{prefix}{task_connector}{label}")
@@ -231,7 +231,9 @@ def _print_task_tree():
             items = list(level.items())
             for i, (name, children) in enumerate(items):
                 is_last_item = i == len(items) - 1
-                print(f"{prefix}{connector if i == 0 and not prefix else connector if i == len(items) - 1 else '├── '}{name}")
+                print(
+                    f"{prefix}{connector if i == 0 and not prefix else connector if i == len(items) - 1 else '├── '}{name}"
+                )
                 new_prefix = prefix + ("    " if is_last_item else "│   ")
                 _print_level(children, new_prefix, is_last_item)
 
@@ -359,8 +361,7 @@ def get_task_status(args):
             else:
                 print(f"Task ID {args.task_id} not found or expired.")
                 print(
-                    "The result may have expired from the cache "
-                    "or the task hasn't completed yet."
+                    "The result may have expired from the cache or the task hasn't completed yet."
                 )
                 return 1
 
@@ -373,9 +374,7 @@ def get_task_status(args):
 
 def main():
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="FastWorker CLI - Brokerless task queue using nng"
-    )
+    parser = argparse.ArgumentParser(description="FastWorker CLI - Brokerless task queue using nng")
 
     # Global logging level option
     parser.add_argument(
@@ -454,9 +453,7 @@ def main():
     list_parser.set_defaults(func=list_tasks)
 
     # Control plane command
-    control_plane_parser = subparsers.add_parser(
-        "control-plane", help="Start control plane worker"
-    )
+    control_plane_parser = subparsers.add_parser("control-plane", help="Start control plane worker")
     control_plane_parser.add_argument(
         "--worker-id", help="Control plane worker ID (default: control-plane)"
     )
@@ -488,9 +485,7 @@ def main():
         default=3600,
         help="Result cache TTL in seconds (default: 3600 = 1 hour)",
     )
-    control_plane_parser.add_argument(
-        "--task-modules", nargs="*", help="Task modules to load"
-    )
+    control_plane_parser.add_argument("--task-modules", nargs="*", help="Task modules to load")
     # GUI options
     control_plane_parser.add_argument(
         "--no-gui", action="store_true", help="Disable management GUI"
@@ -529,9 +524,7 @@ def main():
         default="tcp://127.0.0.1:5550",
         help="Discovery address (default: tcp://127.0.0.1:5550)",
     )
-    subworker_parser.add_argument(
-        "--task-modules", nargs="*", help="Task modules to load"
-    )
+    subworker_parser.add_argument("--task-modules", nargs="*", help="Task modules to load")
     subworker_parser.add_argument(
         "--concurrency",
         type=int,

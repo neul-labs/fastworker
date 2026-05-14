@@ -76,9 +76,7 @@ class ServiceDiscovery:
         """Get registered services."""
         if service_type:
             return [
-                service
-                for service in self.services.values()
-                if service["type"] == service_type
+                service for service in self.services.values() if service["type"] == service_type
             ]
         return list(self.services.values())
 

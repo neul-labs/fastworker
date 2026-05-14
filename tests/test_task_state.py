@@ -17,6 +17,7 @@ def test_initial_state(tsm):
 
 # --- valid transitions ---
 
+
 @pytest.mark.asyncio
 async def test_submit_to_queued(tsm):
     assert await tsm.submit(scheduled=False)
@@ -92,6 +93,7 @@ async def test_scheduled_enqueues(tsm):
 
 
 # --- invalid transitions rejected ---
+
 
 @pytest.mark.asyncio
 async def test_cannot_cancel_from_pending(tsm):

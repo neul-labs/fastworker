@@ -51,9 +51,7 @@ class NoOpCounter:
 class NoOpHistogram:
     """No-op histogram."""
 
-    def record(
-        self, amount: float, attributes: Optional[Dict[str, Any]] = None
-    ) -> None:
+    def record(self, amount: float, attributes: Optional[Dict[str, Any]] = None) -> None:
         """No-op record."""
         pass
 
@@ -102,9 +100,7 @@ def _initialize_meter():
         return
 
     if not _telemetry_enabled:
-        logger.debug(
-            "Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable."
-        )
+        logger.debug("Telemetry disabled. Set FASTWORKER_TELEMETRY_ENABLED=true to enable.")
         _meter = NoOpMeter()
         _task_submitted_counter = NoOpCounter()
         _task_completed_counter = NoOpCounter()
@@ -117,9 +113,7 @@ def _initialize_meter():
     try:
         # Get configuration from environment
         service_name = os.getenv("OTEL_SERVICE_NAME", "fastworker")
-        otlp_endpoint = os.getenv(
-            "OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"
-        )
+        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
 
         # Create resource with service name
         resource = Resource.create({"service.name": service_name})
@@ -128,9 +122,7 @@ def _initialize_meter():
         otlp_exporter = OTLPMetricExporter(endpoint=otlp_endpoint, insecure=True)
 
         # Create metric reader
-        reader = PeriodicExportingMetricReader(
-            otlp_exporter, export_interval_millis=60000
-        )
+        reader = PeriodicExportingMetricReader(otlp_exporter, export_interval_millis=60000)
 
         # Create meter provider
         provider = MeterProvider(resource=resource, metric_readers=[reader])

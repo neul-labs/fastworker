@@ -80,9 +80,7 @@ def test_submit_task(mock_run, mock_client_class):
         # Verify task modules were loaded
         mock_load.assert_called_once_with(["test_module"])
         # Verify client was created with correct address
-        mock_client_class.assert_called_once_with(
-            discovery_address="tcp://127.0.0.1:5550"
-        )
+        mock_client_class.assert_called_once_with(discovery_address="tcp://127.0.0.1:5550")
         # Verify asyncio.run was called (which runs the submit coroutine)
         mock_run.assert_called_once()
 

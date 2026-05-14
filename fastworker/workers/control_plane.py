@@ -59,9 +59,7 @@ class ControlPlaneWorker(Worker):
     ):
         # Load from environment variables with fallback to defaults
         worker_id = worker_id or os.getenv("FASTWORKER_WORKER_ID", "control-plane")
-        base_address = base_address or os.getenv(
-            "FASTWORKER_BASE_ADDRESS", "tcp://127.0.0.1:5555"
-        )
+        base_address = base_address or os.getenv("FASTWORKER_BASE_ADDRESS", "tcp://127.0.0.1:5555")
         discovery_address = discovery_address or os.getenv(
             "FASTWORKER_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550"
         )
@@ -70,9 +68,7 @@ class ControlPlaneWorker(Worker):
         if serialization_format is None:
             format_str = os.getenv("FASTWORKER_SERIALIZATION_FORMAT", "JSON").upper()
             serialization_format = (
-                SerializationFormat.PICKLE
-                if format_str == "PICKLE"
-                else SerializationFormat.JSON
+                SerializationFormat.PICKLE if format_str == "PICKLE" else SerializationFormat.JSON
             )
 
         subworker_management_port = subworker_management_port or int(
@@ -103,7 +99,10 @@ class ControlPlaneWorker(Worker):
 
         # Initialize base worker
         super().__init__(
-            worker_id, base_address, discovery_address, serialization_format,
+            worker_id,
+            base_address,
+            discovery_address,
+            serialization_format,
             concurrency=concurrency,
         )
 
@@ -140,9 +139,7 @@ class ControlPlaneWorker(Worker):
 
         # Control plane specific attributes
         self.subworker_management_port = subworker_management_port
-        self.subworkers: Dict[str, Dict] = (
-            {}
-        )  # subworker_id -> {address, status, last_seen, load}
+        self.subworkers: Dict[str, Dict] = {}  # subworker_id -> {address, status, last_seen, load}
         self.task_queue: Dict[TaskPriority, deque] = {
             TaskPriority.CRITICAL: deque(),
             TaskPriority.HIGH: deque(),
@@ -215,21 +212,15 @@ class ControlPlaneWorker(Worker):
 
             # Start subworker registry
             await self.subworker_registry.start()
-            logger.info(
-                f"Subworker registry started on port {self.subworker_management_port}"
-            )
+            logger.info(f"Subworker registry started on port {self.subworker_management_port}")
 
             # Start result query server
             await self.result_query_server.start()
-            logger.info(
-                f"Result query server started on port {self.result_query_server.address}"
-            )
+            logger.info(f"Result query server started on port {self.result_query_server.address}")
 
             # Announce self to network
             await self._announce_presence()
-            logger.info(
-                f"Control plane announced itself: {self.worker_id} at {self.base_address}"
-            )
+            logger.info(f"Control plane announced itself: {self.worker_id} at {self.base_address}")
 
             # Start periodic announcements (every 2 seconds)
             asyncio.create_task(self._periodic_announcements())
@@ -265,9 +256,7 @@ class ControlPlaneWorker(Worker):
             await self._do_force_stop()
             return
 
-        logger.info(
-            f"Control plane worker {self.worker_id} started and ready to receive tasks"
-        )
+        logger.info(f"Control plane worker {self.worker_id} started and ready to receive tasks")
         logger.info(f"Subworker management port: {self.subworker_management_port}")
         logger.info(
             f"Result cache: max_size={self.result_cache_max_size}, "
@@ -282,15 +271,9 @@ class ControlPlaneWorker(Worker):
             asyncio.create_task(
                 self._process_tasks(self.critical_respondent, TaskPriority.CRITICAL)
             ),
-            asyncio.create_task(
-                self._process_tasks(self.high_respondent, TaskPriority.HIGH)
-            ),
-            asyncio.create_task(
-                self._process_tasks(self.normal_respondent, TaskPriority.NORMAL)
-            ),
-            asyncio.create_task(
-                self._process_tasks(self.low_respondent, TaskPriority.LOW)
-            ),
+            asyncio.create_task(self._process_tasks(self.high_respondent, TaskPriority.HIGH)),
+            asyncio.create_task(self._process_tasks(self.normal_respondent, TaskPriority.NORMAL)),
+            asyncio.create_task(self._process_tasks(self.low_respondent, TaskPriority.LOW)),
             # Control plane specific tasks
             asyncio.create_task(self._distribute_queued_tasks()),
             asyncio.create_task(self._monitor_subworkers()),
@@ -307,9 +290,7 @@ class ControlPlaneWorker(Worker):
 
         # Wait for active tasks
         if self._active_tasks:
-            done, pending = await asyncio.wait(
-                self._active_tasks, timeout=self.shutdown_timeout
-            )
+            done, pending = await asyncio.wait(self._active_tasks, timeout=self.shutdown_timeout)
             for t in pending:
                 t.cancel()
 
@@ -325,9 +306,7 @@ class ControlPlaneWorker(Worker):
                 await asyncio.sleep(2.0)  # Re-announce every 2 seconds
                 if self.running and not self.shutdown_event.is_set():
                     await self._announce_presence()
-                    logger.debug(
-                        f"Control plane {self.worker_id} re-announced presence"
-                    )
+                    logger.debug(f"Control plane {self.worker_id} re-announced presence")
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -339,9 +318,7 @@ class ControlPlaneWorker(Worker):
             try:
                 # Receive registration request
                 data = await self.subworker_registry.recv()
-                registration = TaskSerializer.deserialize(
-                    data, self.serialization_format
-                )
+                registration = TaskSerializer.deserialize(data, self.serialization_format)
 
                 subworker_id = registration.get("subworker_id")
                 subworker_address = registration.get("address")
@@ -363,9 +340,7 @@ class ControlPlaneWorker(Worker):
                             "load": 0,
                             "registered_at": datetime.now(),
                         }
-                        logger.info(
-                            f"Registered subworker: {subworker_id} at {subworker_address}"
-                        )
+                        logger.info(f"Registered subworker: {subworker_id} at {subworker_address}")
 
                     # Send acknowledgment
                     ack = {"status": "registered", "subworker_id": subworker_id}
@@ -387,9 +362,7 @@ class ControlPlaneWorker(Worker):
 
                 if not task_id:
                     response = {"error": "Missing task_id"}
-                    response_data = TaskSerializer.serialize(
-                        response, self.serialization_format
-                    )
+                    response_data = TaskSerializer.serialize(response, self.serialization_format)
                     await self.result_query_server.send(response_data)
                     continue
 
@@ -413,9 +386,7 @@ class ControlPlaneWorker(Worker):
                     }
                     logger.debug(f"Result for task {task_id} not found in cache")
 
-                response_data = TaskSerializer.serialize(
-                    response, self.serialization_format
-                )
+                response_data = TaskSerializer.serialize(response, self.serialization_format)
                 await self.result_query_server.send(response_data)
 
             except Exception as e:
@@ -439,6 +410,7 @@ class ControlPlaneWorker(Worker):
             if tid == task_id:
                 self._scheduled_heap.pop(i)
                 import heapq
+
                 heapq.heapify(self._scheduled_heap)
                 self._store_cancel_result(task_id)
                 logger.info(f"Task {task_id} cancelled from scheduled heap")
@@ -454,7 +426,11 @@ class ControlPlaneWorker(Worker):
 
         # Check if already in cache (already completed/failed)
         existing = self._get_result(task_id)
-        if existing and existing.status in (TaskStatus.SUCCESS, TaskStatus.FAILURE, TaskStatus.CANCELLED):
+        if existing and existing.status in (
+            TaskStatus.SUCCESS,
+            TaskStatus.FAILURE,
+            TaskStatus.CANCELLED,
+        ):
             logger.info(f"Task {task_id} already terminal ({existing.status})")
             return False
 
@@ -472,10 +448,13 @@ class ControlPlaneWorker(Worker):
             completed_at=datetime.now(),
         )
         self._store_result(result)
-        await self.event_bus.emit("task.cancelled", {
-            "task_id": task_id,
-            "status": "cancelled",
-        })
+        await self.event_bus.emit(
+            "task.cancelled",
+            {
+                "task_id": task_id,
+                "status": "cancelled",
+            },
+        )
 
     async def _process_tasks(self, respondent, priority: TaskPriority):
         """Process tasks for a specific priority - decoupled recv/process to avoid blocking."""
@@ -487,9 +466,7 @@ class ControlPlaneWorker(Worker):
 
                 # Check for batch submission
                 if isinstance(task_data, dict) and task_data.get("action") == "batch_submit":
-                    await self._handle_batch_submit(
-                        task_data["tasks"], respondent, priority
-                    )
+                    await self._handle_batch_submit(task_data["tasks"], respondent, priority)
                     continue
 
                 task = Task(**task_data)
@@ -503,11 +480,14 @@ class ControlPlaneWorker(Worker):
                 self._cancel_events[task.id] = cancel_event
                 self.active_tasks[task.id] = task
 
-                await self.event_bus.emit("task.queued", {
-                    "task_id": task.id,
-                    "name": task.name,
-                    "priority": priority.value,
-                })
+                await self.event_bus.emit(
+                    "task.queued",
+                    {
+                        "task_id": task.id,
+                        "name": task.name,
+                        "priority": priority.value,
+                    },
+                )
 
                 # Spawn as tracked task to avoid blocking the recv loop
                 exec_task = asyncio.create_task(
@@ -539,15 +519,12 @@ class ControlPlaneWorker(Worker):
             cancel_event = asyncio.Event()
             self._cancel_events[task.id] = cancel_event
             self.active_tasks[task.id] = task
-            exec_task = asyncio.create_task(
-                self._process_and_respond(task, respondent, priority)
-            )
+            exec_task = asyncio.create_task(self._process_and_respond(task, respondent, priority))
             self._active_tasks.add(exec_task)
             exec_task.add_done_callback(lambda t, tid=task.id: self._cleanup_task(tid))
 
         logger.info(
-            f"Control plane {self.worker_id} accepted batch of "
-            f"{len(task_ids)} tasks: {task_ids}"
+            f"Control plane {self.worker_id} accepted batch of {len(task_ids)} tasks: {task_ids}"
         )
 
         # Send acknowledgment back to client
@@ -562,6 +539,7 @@ class ControlPlaneWorker(Worker):
         # Check if task has a future ETA — schedule it
         if task.eta and task.eta > datetime.now():
             import heapq
+
             heapq.heappush(self._scheduled_heap, (task.eta, task.id, task, None))
             logger.info(
                 f"Task {task.id} scheduled for {task.eta.isoformat()} "
@@ -571,11 +549,14 @@ class ControlPlaneWorker(Worker):
 
         # Attach cancel event to the task object for the worker to check
         task._cancel_event = self._cancel_events.get(task.id)
-        await self.event_bus.emit("task.started", {
-            "task_id": task.id,
-            "name": task.name,
-            "priority": priority.value,
-        })
+        await self.event_bus.emit(
+            "task.started",
+            {
+                "task_id": task.id,
+                "name": task.name,
+                "priority": priority.value,
+            },
+        )
 
         try:
             subworker = self._select_subworker(priority)
@@ -592,12 +573,15 @@ class ControlPlaneWorker(Worker):
                 logger.info(f"Control plane sent result for task {task.id}")
 
                 status = result.status.value
-                await self.event_bus.emit(f"task.{status}", {
-                    "task_id": task.id,
-                    "name": task.name,
-                    "status": status,
-                    "error": result.error,
-                })
+                await self.event_bus.emit(
+                    f"task.{status}",
+                    {
+                        "task_id": task.id,
+                        "name": task.name,
+                        "status": status,
+                        "error": result.error,
+                    },
+                )
 
         except Exception as e:
             logger.error(f"Error processing task {task.id}: {e}", exc_info=True)
@@ -609,10 +593,13 @@ class ControlPlaneWorker(Worker):
                 completed_at=datetime.now(),
             )
             self._store_result(error_result)
-            await self.event_bus.emit("task.failed", {
-                "task_id": task.id,
-                "error": str(e),
-            })
+            await self.event_bus.emit(
+                "task.failed",
+                {
+                    "task_id": task.id,
+                    "error": str(e),
+                },
+            )
             try:
                 error_data = TaskSerializer.serialize(
                     error_result.model_dump(), self.serialization_format
@@ -646,8 +633,7 @@ class ControlPlaneWorker(Worker):
                         eta, task_id, task, meta = item
 
                     logger.info(
-                        f"Scheduled task {task_id} is now due "
-                        f"(was scheduled for {eta.isoformat()})"
+                        f"Scheduled task {task_id} is now due (was scheduled for {eta.isoformat()})"
                     )
 
                     if meta and meta.get("is_periodic"):
@@ -678,18 +664,14 @@ class ControlPlaneWorker(Worker):
                         self._active_periodic_tasks.add(task_name)
 
                         # Execute and reschedule
-                        asyncio.create_task(
-                            self._execute_periodic(task, task_name, meta, now)
-                        )
+                        asyncio.create_task(self._execute_periodic(task, task_name, meta, now))
                     else:
                         self.task_queue[task.priority].append(task)
 
             except Exception as e:
                 logger.error(f"Error processing scheduled tasks: {e}")
 
-    async def _execute_periodic(
-        self, task: Task, task_name: str, meta: dict, now: datetime
-    ):
+    async def _execute_periodic(self, task: Task, task_name: str, meta: dict, now: datetime):
         """Execute a periodic task and reschedule it."""
         import heapq
 
@@ -703,21 +685,27 @@ class ControlPlaneWorker(Worker):
             self._cancel_events[task.id] = asyncio.Event()
             self.active_tasks[task.id] = task
 
-            await self.event_bus.emit("task.started", {
-                "task_id": task.id,
-                "name": task.name,
-                "priority": task.priority.value,
-            })
+            await self.event_bus.emit(
+                "task.started",
+                {
+                    "task_id": task.id,
+                    "name": task.name,
+                    "priority": task.priority.value,
+                },
+            )
 
             result = await self._execute_task(task)
             self._store_result(result)
 
-            await self.event_bus.emit(f"task.{result.status.value}", {
-                "task_id": task.id,
-                "name": task.name,
-                "status": result.status.value,
-                "error": result.error,
-            })
+            await self.event_bus.emit(
+                f"task.{result.status.value}",
+                {
+                    "task_id": task.id,
+                    "name": task.name,
+                    "status": result.status.value,
+                    "error": result.error,
+                },
+            )
 
         except Exception as e:
             logger.error(f"Periodic task {task_name} failed: {e}")
@@ -751,9 +739,7 @@ class ControlPlaneWorker(Worker):
                     f"(execution #{new_times_run + 1})"
                 )
             else:
-                logger.info(
-                    f"Periodic task {task_name} completed after {new_times_run} executions"
-                )
+                logger.info(f"Periodic task {task_name} completed after {new_times_run} executions")
 
     def _schedule_periodic_tasks(self):
         """Schedule all registered periodic tasks on the heap at startup."""
@@ -799,10 +785,7 @@ class ControlPlaneWorker(Worker):
                 self._scheduled_heap,
                 (first_eta, task_obj.id, task_obj, meta),
             )
-            logger.info(
-                f"Scheduled periodic task: {name} "
-                f"(first run: {first_eta.isoformat()})"
-            )
+            logger.info(f"Scheduled periodic task: {name} (first run: {first_eta.isoformat()})")
 
     async def _distribute_queued_tasks(self):
         """Distribute queued tasks to subworkers or process locally."""
@@ -839,9 +822,7 @@ class ControlPlaneWorker(Worker):
         """Select best subworker for a task based on load and priority."""
         # Filter active subworkers
         active_subworkers = {
-            sid: info
-            for sid, info in self.subworkers.items()
-            if info["status"] == "active"
+            sid: info for sid, info in self.subworkers.items() if info["status"] == "active"
         }
 
         if not active_subworkers:
@@ -851,9 +832,7 @@ class ControlPlaneWorker(Worker):
         best_subworker = min(active_subworkers.items(), key=lambda x: x[1]["load"])
         return best_subworker[0] if best_subworker else None
 
-    async def _send_task_to_subworker(
-        self, task: Task, subworker_id: str, original_respondent
-    ):
+    async def _send_task_to_subworker(self, task: Task, subworker_id: str, original_respondent):
         """Send a task to a subworker and forward the result back."""
         try:
             subworker_info = self.subworkers[subworker_id]
@@ -872,9 +851,7 @@ class ControlPlaneWorker(Worker):
                 "low": base_port + 3,
             }
 
-            priority_address = (
-                f"{scheme}://{host}:{priority_ports[task.priority.value]}"
-            )
+            priority_address = f"{scheme}://{host}:{priority_ports[task.priority.value]}"
 
             # Create requester to send task
             requester = ReqRepPattern(priority_address, is_server=False)
@@ -882,9 +859,7 @@ class ControlPlaneWorker(Worker):
 
             try:
                 # Send task
-                task_data = TaskSerializer.serialize(
-                    task.model_dump(), self.serialization_format
-                )
+                task_data = TaskSerializer.serialize(task.model_dump(), self.serialization_format)
                 await requester.send(task_data)
 
                 # Update subworker load
@@ -892,9 +867,7 @@ class ControlPlaneWorker(Worker):
 
                 # Receive result
                 result_data = await requester.recv()
-                result_dict = TaskSerializer.deserialize(
-                    result_data, self.serialization_format
-                )
+                result_dict = TaskSerializer.deserialize(result_data, self.serialization_format)
                 result = TaskResult(**result_dict)
 
                 # Store result in cache
@@ -936,9 +909,7 @@ class ControlPlaneWorker(Worker):
                 for subworker_id, info in list(self.subworkers.items()):
                     time_since_seen = (current_time - info["last_seen"]).total_seconds()
                     if time_since_seen > stale_threshold:
-                        logger.warning(
-                            f"Subworker {subworker_id} appears stale, marking inactive"
-                        )
+                        logger.warning(f"Subworker {subworker_id} appears stale, marking inactive")
                         info["status"] = "inactive"
 
                 await asyncio.sleep(5.0)  # Check every 5 seconds
@@ -961,9 +932,7 @@ class ControlPlaneWorker(Worker):
             # Remove least recently accessed (first item in OrderedDict)
             oldest_task_id = next(iter(self.result_cache))
             del self.result_cache[oldest_task_id]
-            logger.debug(
-                f"Evicted result for task {oldest_task_id} due to cache size limit"
-            )
+            logger.debug(f"Evicted result for task {oldest_task_id} due to cache size limit")
 
         # Store new result
         self.result_cache[task_id] = {
@@ -1016,9 +985,7 @@ class ControlPlaneWorker(Worker):
                     del self.result_cache[task_id]
 
                 if expired_tasks:
-                    logger.info(
-                        f"Cleaned up {len(expired_tasks)} expired results from cache"
-                    )
+                    logger.info(f"Cleaned up {len(expired_tasks)} expired results from cache")
                     logger.debug(f"Cache size after cleanup: {len(self.result_cache)}")
 
             except Exception as e:

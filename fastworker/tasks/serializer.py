@@ -32,9 +32,7 @@ class TaskSerializer:
     """
 
     @staticmethod
-    def serialize(
-        data: Any, format: SerializationFormat = SerializationFormat.JSON
-    ) -> bytes:
+    def serialize(data: Any, format: SerializationFormat = SerializationFormat.JSON) -> bytes:
         """Serialize data to bytes.
 
         Args:
@@ -58,9 +56,7 @@ class TaskSerializer:
             raise ValueError(f"Unsupported serialization format: {format}")
 
     @staticmethod
-    def deserialize(
-        data: bytes, format: SerializationFormat = SerializationFormat.JSON
-    ) -> Any:
+    def deserialize(data: bytes, format: SerializationFormat = SerializationFormat.JSON) -> Any:
         """Deserialize bytes to data.
 
         Args:
@@ -77,8 +73,7 @@ class TaskSerializer:
             return json.loads(data.decode("utf-8"))
         elif format == SerializationFormat.PICKLE:
             warnings.warn(
-                "PICKLE deserialization is NOT secure. "
-                "Only deserialize data from trusted sources.",
+                "PICKLE deserialization is NOT secure. Only deserialize data from trusted sources.",
                 RuntimeWarning,
                 stacklevel=2,
             )
