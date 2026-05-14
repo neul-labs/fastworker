@@ -37,24 +37,3 @@ jobs:
 
       - name: Run tests
         run: uv run pytest --ignore=tests/test_discovery.py --ignore=tests/integration_test.py -v
-
-  check-version:
-    needs: [test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Check version and create tag
-        run: |
-          CURRENT_VERSION=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
-          if [ "$PREV_TAG" != "v$CURRENT_VERSION" ]; then
-            git tag "v$CURRENT_VERSION"
-            git push origin "v$CURRENT_VERSION"
-          fi
