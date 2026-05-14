@@ -95,6 +95,39 @@ The control plane automatically:
 - Processes tasks locally if no subworkers available
 - Monitors subworker health and load
 
+## Worker Lifecycle
+
+Workers follow a formal state machine:
+
+```
+INIT → STARTING → RUNNING → DRAINING → STOPPING → STOPPED
+```
+
+- **INIT**: Worker created, not yet started
+- **STARTING**: Sockets binding, discovery connecting
+- **RUNNING**: Accepting and processing tasks
+- **DRAINING**: Finishing in-flight tasks, rejecting new submissions
+- **STOPPING**: Closing sockets and connections
+- **STOPPED**: Terminal — all resources released
+
+## Concurrency
+
+Control how many tasks a worker processes simultaneously:
+
+=== "CLI"
+    ```bash
+    fastworker worker --worker-id w1 --concurrency 4
+    fastworker control-plane --concurrency 8
+    fastworker subworker --worker-id sw1 --control-plane-address tcp://... --concurrency 4
+    ```
+
+=== "Environment Variable"
+    ```bash
+    export FASTWORKER_WORKER_CONCURRENCY=4
+    ```
+
+Concurrency is managed via `asyncio.Semaphore` — each concurrent slot acquires the semaphore before execution and releases it after. Sync tasks use `asyncio.to_thread()` so the event loop stays responsive.
+
 ## Health Monitoring
 
 The control plane monitors subworker health:
@@ -102,15 +135,17 @@ The control plane monitors subworker health:
 - Tracks last seen timestamp
 - Marks subworkers inactive after 30 seconds of no activity
 - Automatically excludes inactive subworkers from task distribution
+- Removed subworkers have their queued tasks re-assigned
 
 ## Graceful Shutdown
 
 Workers handle shutdown signals gracefully:
 
-1. Press `Ctrl+C` to stop
-2. Current tasks complete processing
-3. Workers unregister from service discovery
-4. All connections close cleanly
+1. Press `Ctrl+C` or send `SIGTERM`/`SIGINT`
+2. Worker transitions `RUNNING → DRAINING`
+3. In-flight tasks complete (with configurable `shutdown_timeout`)
+4. Pending in-flight tasks are cancelled if timeout expires
+5. All connections close cleanly: `STOPPING → STOPPED`
 
 ## Scaling
 

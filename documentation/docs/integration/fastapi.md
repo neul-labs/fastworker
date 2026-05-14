@@ -1,267 +1,223 @@
 # FastAPI Integration
 
-FastWorker integrates seamlessly with FastAPI applications, providing a brokerless alternative to Celery.
+FastWorker provides a native FastAPI integration that feels like a built-in framework feature. One line wires everything up — no manual Client lifecycle, no null guards.
 
-## Basic Integration
-
-### 1. Define Tasks
+## Quick Start
 
 ```python
-# tasks.py
+from fastapi import FastAPI
 from fastworker import task
+from fastworker.integration.fastapi import FastWorker
+
+app = FastAPI()
+fw = FastWorker(app)  # handles all lifecycle automatically
+
 
 @task
-def process_user_registration(user_id: int, email: str) -> dict:
-    """Process user registration."""
-    return {"user_id": user_id, "status": "registered"}
+def send_welcome_email(user_id: int, email: str) -> str:
+    return f"Welcome email sent to {email}"
 
-@task
-def send_notification(user_id: int, message: str) -> dict:
-    """Send notification to user."""
-    return {"user_id": user_id, "notification_sent": True}
+
+@app.post("/users/{user_id}/welcome")
+async def welcome_user(user_id: int, email: str):
+    task_id = await fw.delay("send_welcome_email", user_id, email)
+    return {"task_id": task_id, "status": "queued"}
 ```
-
-### 2. Configure FastAPI Application
-
-```python
-# main.py
-from fastapi import FastAPI, HTTPException
-from fastworker import Client
-
-app = FastAPI(title="My FastAPI App")
-client = Client()
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize FastWorker client on startup."""
-    await client.start()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up FastWorker client on shutdown."""
-    client.stop()
-
-@app.post("/register/")
-async def register_user(user_id: int, email: str):
-    """Register a new user."""
-    task_id = await client.delay("process_user_registration", user_id, email)
-    return {"message": "Registration started", "task_id": task_id}
-
-@app.get("/task/{task_id}")
-async def get_task_status(task_id: str):
-    """Get task status."""
-    result = await client.get_task_result(task_id)
-    if result:
-        return {"status": result.status, "result": result.result}
-    return {"status": "pending"}
-```
-
-### 3. Start Workers
 
 ```bash
-# Terminal 1: Start control plane
-fastworker control-plane --task-modules tasks
+# Terminal 1: Control plane
+fastworker control-plane --task-modules app
 
-# Terminal 2: Start FastAPI
-uvicorn main:app --reload
+# Terminal 2: FastAPI app
+uvicorn app:app --reload
 ```
 
-## Advanced Patterns
+## How It Works
 
-### Background Task Processing
+`FastWorker(app)` creates an internal `Client` and registers it on the FastAPI lifespan:
+
+- **Startup**: Client discovers the control plane automatically
+- **Shutdown**: Client closes sockets gracefully
+- **Existing lifespans**: If your app already has a lifespan (e.g., for database connections), FastWorker chains with it — both run correctly
+
+### Lifespan Chaining
 
 ```python
-@app.post("/users/")
-async def create_user(user_data: dict):
-    """Create user and send welcome email in background."""
-    # Save user synchronously
-    user = db.save_user(user_data)
+from contextlib import asynccontextmanager
 
-    # Send email in background (non-blocking)
-    task_id = await client.delay("send_welcome_email", user.id, user.email)
+@asynccontextmanager
+async def db_lifespan(app):
+    await database.connect()
+    yield
+    await database.disconnect()
 
+app = FastAPI(lifespan=db_lifespan)
+fw = FastWorker(app)  # chains with db_lifespan automatically
+```
+
+## Available Methods
+
+All methods are async and delegated to the internal Client:
+
+| Method | Returns | Blocking? |
+|---|---|---|
+| `fw.delay(name, *args, **kwargs)` | `str` (task_id) | No |
+| `fw.submit_task(name, args, kwargs)` | `TaskResult` | Yes |
+| `fw.delay_with_callback(name, addr, *args)` | `str` (task_id) | No |
+| `fw.submit_batch(tasks)` | `list[str]` | No |
+| `fw.cancel_task(task_id)` | `bool` | — |
+| `fw.get_task_result(task_id)` | `TaskResult \| None` | — |
+| `fw.get_result(task_id)` | `TaskResult \| None` (local cache) | — |
+| `fw.get_status(task_id)` | `TaskStatus \| None` | — |
+
+## Priority & Scheduling
+
+```python
+from fastworker.tasks.models import TaskPriority
+
+# High priority
+await fw.delay("critical_task", data, priority=TaskPriority.CRITICAL)
+
+# Delayed execution (10 seconds)
+await fw.delay("reminder", user_id, countdown=10)
+
+# Specific time
+from datetime import datetime, timedelta
+eta = datetime.now() + timedelta(hours=1)
+await fw.delay("scheduled_job", eta=eta)
+```
+
+## Health Check
+
+The `worker_count` property reports discovered workers — perfect for health endpoints:
+
+```python
+@app.get("/health")
+async def health():
     return {
-        "user_id": user.id,
-        "email_task_id": task_id,
-        "message": "User created"
+        "status": "healthy",
+        "workers_online": fw.worker_count,
     }
 ```
 
-### Error Handling
+## Custom Client Configuration
+
+Pass keyword arguments through to the underlying `Client`:
 
 ```python
-@app.post("/process/")
-async def process_with_fallback(data: dict):
-    """Process data with error handling."""
-    task_id = await client.delay("process_data", data)
-
-    # Wait a bit and check result
-    await asyncio.sleep(2)
-    result = await client.get_task_result(task_id)
-
-    if result:
-        if result.status == "failure":
-            raise HTTPException(status_code=500, detail=result.error)
-        return {"result": result.result}
-
-    return {"task_id": task_id, "status": "processing"}
+fw = FastWorker(
+    app,
+    client_kwargs={
+        "timeout": 60,
+        "retries": 5,
+        "discovery_address": "tcp://127.0.0.1:5550",
+    },
+)
 ```
 
-### Health Check
+## Raw Client Access
+
+If you need Client methods not directly exposed on `FastWorker`:
 
 ```python
-@app.get("/health/")
-async def health_check():
-    """Health check endpoint."""
-    worker_count = len(client.workers) if hasattr(client, 'workers') else 0
-    if worker_count > 0:
-        return {"status": "healthy", "workers_online": worker_count}
-    return {"status": "degraded", "workers_online": 0}
-```
-
-### Task Status Tracking
-
-```python
-from fastworker.tasks.models import TaskStatus
-
-task_storage = {}
-
-@app.post("/process-with-tracking/")
-async def process_with_tracking(data: dict):
-    """Process data with status tracking."""
-    task_id = await client.delay("process_data", data)
-    return {"task_id": task_id, "status": "processing"}
-
-@app.get("/task/{task_id}")
-async def get_task_status(task_id: str):
-    """Get task status."""
-    result = await client.get_task_result(task_id)
-    if result:
-        return {
-            "task_id": task_id,
-            "status": result.status,
-            "result": result.result if result.status == "success" else None,
-            "error": result.error if result.status == "failure" else None
-        }
-    return {"task_id": task_id, "status": "pending"}
-```
-
-## Dependency Injection
-
-```python
-from fastapi import Depends
-
-async def get_fastworker_client():
-    """Dependency to get FastWorker client."""
-    return client
-
-@app.post("/process/")
-async def process_data(
-    data: dict,
-    fw_client: Client = Depends(get_fastworker_client)
-):
-    """Process data with injected client."""
-    task_id = await fw_client.delay("process_data", data)
-    return {"task_id": task_id}
+# Access underlying client
+fw.client.workers          # raw worker list
+fw.client.pending_tasks    # queued tasks
 ```
 
 ## Task Callbacks
 
+Get notified when a task completes:
+
 ```python
-@app.post("/process-with-callback/")
-async def process_with_callback(data: dict, callback_url: str):
-    """Process data with callback when finished."""
-    task_id = await client.delay_with_callback(
-        "process_data",
-        callback_url,
-        data,
-        callback_data={"source": "fastapi"}
+@app.post("/reports/generate")
+async def generate_report(params: dict):
+    task_id = await fw.delay_with_callback(
+        "generate_report",
+        "tcp://127.0.0.1:6000",  # callback listener address
+        params,
+        callback_data={"notify": "admin"},
     )
-    return {"task_id": task_id, "message": "Task submitted"}
-```
-
-## Configuration
-
-### Environment-Based
-
-```python
-import os
-
-DISCOVERY_ADDRESS = os.getenv("FASTWORKER_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550")
-TIMEOUT = int(os.getenv("FASTWORKER_TIMEOUT", "30"))
-
-client = Client(
-    discovery_address=DISCOVERY_ADDRESS,
-    timeout=TIMEOUT
-)
-```
-
-### Lifespan Context (Modern FastAPI)
-
-```python
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    await client.start()
-    yield
-    # Shutdown
-    client.stop()
-
-app = FastAPI(lifespan=lifespan)
-```
-
-## Best Practices
-
-1. **Initialize Client Once** - Create a single client instance per application
-2. **Use Non-Blocking** - Use `delay()` for fast response times
-3. **Handle Errors** - Implement fallback strategies
-4. **Monitor Health** - Check worker availability
-5. **Set Timeouts** - Configure appropriate timeouts
-6. **Use Priorities** - Submit tasks with appropriate priority levels
-
-## Full Example
-
-```python
-from fastapi import FastAPI, HTTPException
-from fastworker import Client
-from contextlib import asynccontextmanager
-import os
-
-# Configuration
-DISCOVERY = os.getenv("FASTWORKER_DISCOVERY_ADDRESS", "tcp://127.0.0.1:5550")
-client = Client(discovery_address=DISCOVERY)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await client.start()
-    yield
-    client.stop()
-
-app = FastAPI(title="FastWorker Example", lifespan=lifespan)
-
-@app.post("/tasks/")
-async def create_task(name: str, data: dict, priority: str = "normal"):
-    """Submit a new task."""
-    task_id = await client.delay(name, data, priority=priority)
     return {"task_id": task_id}
+```
 
-@app.get("/tasks/{task_id}")
-async def get_task(task_id: str):
-    """Get task result."""
-    result = await client.get_task_result(task_id)
-    if result:
-        return {
-            "task_id": task_id,
-            "status": result.status,
-            "result": result.result,
-            "error": result.error
-        }
-    return {"task_id": task_id, "status": "pending"}
+## Batch Submission
 
-@app.get("/health")
-async def health():
-    """Health check."""
-    return {"status": "healthy"}
+Submit multiple tasks atomically:
+
+```python
+@app.post("/notify-all")
+async def notify_all(user_ids: list[int]):
+    tasks = [
+        {"task_name": "send_notification", "args": (uid, "System update")}
+        for uid in user_ids
+    ]
+    task_ids = await fw.submit_batch(tasks)
+    return {"count": len(task_ids), "task_ids": task_ids}
+```
+
+## Project Structure for Larger Apps
+
+For production FastAPI + FastWorker apps:
+
+```
+app/
+├── api/
+│   └── routes.py          # FastAPI endpoints
+├── tasks/
+│   ├── __init__.py         # imports all task modules
+│   ├── emails.py           # @task email functions
+│   └── reports.py          # @task report functions
+├── services/               # business logic (shared)
+├── models/                 # pydantic models
+└── main.py                 # FastAPI app + FastWorker
+```
+
+`main.py`:
+```python
+from fastapi import FastAPI
+from fastworker.integration.fastapi import FastWorker
+from app.api.routes import router
+from app.tasks import *  # noqa — registers @task functions
+
+app = FastAPI()
+app.include_router(router)
+fw = FastWorker(app)
+```
+
+Start with:
+```bash
+fastworker control-plane --task-modules app.tasks
+uvicorn app.main:app
+```
+
+## Migration from Manual Client
+
+**Before (v0.2.x)**:
+```python
+client = Client()
+
+@app.on_event("startup")
+async def startup():
+    await client.start()
+
+@app.on_event("shutdown")
+async def shutdown():
+    client.stop()
+
+@app.post("/task")
+async def create(data: dict):
+    if client:  # null guard
+        task_id = await client.delay("my_task", data)
+    return {"task_id": task_id}
+```
+
+**After (v0.3.0)**:
+```python
+fw = FastWorker(app)
+
+@app.post("/task")
+async def create(data: dict):
+    task_id = await fw.delay("my_task", data)
+    return {"task_id": task_id}
 ```

@@ -8,11 +8,13 @@ Access the GUI at: **http://127.0.0.1:8080** (default)
 
 The management GUI provides:
 
-- **Real-time Status** - Monitor control plane health and uptime
+- **Real-time Status** - Monitor control plane health and uptime with SSE live updates
 - **Worker Monitoring** - Track active/inactive subworkers with load metrics
 - **Queue Visualization** - View task counts by priority level
 - **Task History** - Browse cached task results with status and timing
 - **Cache Statistics** - Monitor result cache utilization
+- **Dark Mode** - Toggle between light and dark themes (persisted across sessions)
+- **Task Actions** - Cancel or retry tasks directly from the GUI
 
 ## Quick Start
 
@@ -56,10 +58,13 @@ fastworker control-plane --no-gui --task-modules mytasks
 | `FASTWORKER_GUI_ENABLED` | `true` | Enable/disable the GUI |
 | `FASTWORKER_GUI_HOST` | `127.0.0.1` | GUI server host address |
 | `FASTWORKER_GUI_PORT` | `8080` | GUI server port |
+| `FASTWORKER_GUI_API_KEY` | — | API key for write endpoint authentication |
+| `FASTWORKER_GUI_CORS_ORIGIN` | `*` | Allowed CORS origin |
 
 ```bash
 export FASTWORKER_GUI_HOST=0.0.0.0
 export FASTWORKER_GUI_PORT=9000
+export FASTWORKER_GUI_API_KEY=my-secret-key
 fastworker control-plane --task-modules mytasks
 ```
 
@@ -193,11 +198,59 @@ Query parameters:
 - `offset` - Starting offset (default: 0)
 - `status` - Filter by status (optional)
 
+### GET /api/events (SSE)
+
+Server-Sent Events stream for real-time updates. The GUI connects to this endpoint for live monitoring.
+
+```
+GET /api/events
+Accept: text/event-stream
+```
+
+Events streamed:
+
+| Event | Description |
+|-------|-------------|
+| `task.queued` | New task received and queued |
+| `task.started` | Task began executing on a worker |
+| `task.success` | Task completed successfully with result |
+| `task.failure` | Task failed with error |
+| `task.cancelled` | Task was cancelled |
+
+### POST /api/tasks/{id}/cancel
+
+Cancel a queued or running task. Requires API key authentication.
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/tasks/abc123/cancel \
+  -H "Authorization: Bearer my-secret-key"
+```
+
+### POST /api/tasks/{id}/retry
+
+Retry a failed task. Requires API key authentication.
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/tasks/abc123/retry \
+  -H "Authorization: Bearer my-secret-key"
+```
+
 ## Security
 
 ### Default (Localhost Only)
 
 By default, the GUI binds to `127.0.0.1` (localhost only), preventing remote access.
+
+### Built-in API Key Authentication
+
+Set the `FASTWORKER_GUI_API_KEY` environment variable to protect write endpoints (cancel, retry):
+
+```bash
+export FASTWORKER_GUI_API_KEY=my-secret-key
+fastworker control-plane --task-modules mytasks
+```
+
+All `POST` endpoints require a `Authorization: Bearer <key>` header. Read-only `GET` endpoints are publicly accessible.
 
 ### Enabling Remote Access
 
@@ -209,17 +262,19 @@ fastworker control-plane --gui-host 0.0.0.0 --task-modules mytasks
 !!! warning
     When exposing the GUI to a network:
 
-    - Use a reverse proxy (nginx, Caddy) with authentication
+    - Set `FASTWORKER_GUI_API_KEY` to protect write endpoints
+    - Set `FASTWORKER_GUI_CORS_ORIGIN` to restrict cross-origin requests
     - Consider firewall rules to restrict access
-    - The GUI has no built-in authentication
+    - For additional protection, use a reverse proxy (nginx, Caddy)
 
 ### Recommended Production Setup
 
 ```bash
-# 1. Keep GUI on localhost
+# 1. Keep GUI on localhost with API key
+export FASTWORKER_GUI_API_KEY=my-secret-key
 fastworker control-plane --gui-host 127.0.0.1 --gui-port 8080 --task-modules mytasks
 
-# 2. Use nginx as reverse proxy with authentication
+# 2. Optionally use nginx as reverse proxy with additional authentication
 ```
 
 Example nginx config:
@@ -256,10 +311,20 @@ fastworker control-plane --gui-host 0.0.0.0 --task-modules mytasks
 sudo ufw allow 8080/tcp
 ```
 
+### Real-Time Updates (SSE)
+
+The GUI uses Server-Sent Events for live updates. When connected, a green indicator shows "Live updates connected". SSE streams events for:
+
+- `task.queued` — new task received
+- `task.started` — task began executing
+- `task.success` / `task.failure` — task completed
+- `task.cancelled` — task was cancelled
+
+The GUI falls back to polling every 15 seconds if the SSE connection drops.
+
 ### GUI Shows Stale Data
 
-The GUI auto-refreshes every 5 seconds. If data appears stale:
-
-1. Click the refresh button in the header
-2. Check browser console for errors
-3. Verify control plane is running
+1. Check the SSE connection indicator in the header
+2. Click the refresh button to force a full reload
+3. Check browser console for errors
+4. Verify control plane is running

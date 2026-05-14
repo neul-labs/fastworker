@@ -34,12 +34,17 @@ Traditional task queues (Celery + Redis) require deploying and managing **4-6+ s
 
 - **Brokerless Architecture** - No Redis, RabbitMQ, or other message brokers required
 - **Control Plane Architecture** - Centralized coordination with distributed subworkers
-- **Built-in Management GUI** - Real-time web dashboard for monitoring workers, queues, and tasks
+- **State Machine-Based Lifecycles** - Atomic state transitions across task, worker, subworker, and client lifecycles
+- **Built-in Management GUI** - Real-time web dashboard with SSE live updates and dark mode
 - **Automatic Worker Discovery** - Workers find each other automatically on the network
 - **Priority Queues** - Support for critical, high, normal, and low priority tasks
-- **Result Caching** - Task results cached with expiration and memory limits
+- **Task Cancellation** - Cancel tasks from the CLI or management GUI
+- **Scheduled/Delayed Tasks** - ETA and countdown support for delayed execution
+- **Result Caching** - Task results cached with expiration and LRU eviction
 - **Task Completion Callbacks** - Receive real-time notifications when tasks complete
-- **Built-in Reliability** - Automatic retries and error handling
+- **Worker Concurrency** - Configurable concurrent task execution per worker
+- **Batch Submission** - Submit multiple tasks in a single network message
+- **Built-in Reliability** - Automatic retries with configurable backoff and error handling
 - **FastAPI Integration** - Seamless integration with web applications
 - **OpenTelemetry Support** - Optional distributed tracing and metrics for observability
 - **Zero Configuration** - Works out of the box with sensible defaults
@@ -146,7 +151,7 @@ fastworker subworker --worker-id subworker1 \
 
 FastWorker uses a **Control Plane Architecture**:
 
-```
+```text
 ┌─────────────┐
 │   Client    │
 └──────┬──────┘

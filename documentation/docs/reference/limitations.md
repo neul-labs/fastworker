@@ -12,6 +12,7 @@ FastWorker is a **lightweight, brokerless task queue** for Python applications t
 - Direct peer-to-peer communication
 - Built-in service discovery
 - Priority-based task execution
+- State machine-based task lifecycle with atomic transitions
 
 ## Design Philosophy
 
@@ -111,7 +112,12 @@ await client.delay("my_task", data)
 - Task chains (A → B → C)
 - Conditional routing
 - Task dependencies and DAGs
-- Scheduled/cron tasks
+- Cron-like periodic tasks
+
+**Now available (v0.2.0):**
+- Scheduled/delayed tasks with ETA and countdown
+- Task retries with configurable backoff
+- Task cancellation
 
 **Workaround:**
 
@@ -186,7 +192,7 @@ def my_task(data):
 | Setup complexity | Very low | Medium |
 | Scalability | Moderate | High |
 | Task workflows | Basic | Advanced |
-| Monitoring | Built-in GUI | Flower UI |
+| Monitoring | Built-in GUI (SSE, dark mode) | Flower UI |
 
 ### FastWorker vs RabbitMQ
 
@@ -278,6 +284,9 @@ result = await client.get_task_result(task_id)  # Will be None!
 - Development and testing
 - Small to medium scale
 - Zero-dependency deployments
+- State machine-driven task lifecycle (v0.2.0)
+- Task cancellation and scheduled execution (v0.2.0)
+- Worker concurrency and batch submission (v0.2.0)
 
 ### FastWorker is NOT Suitable For:
 

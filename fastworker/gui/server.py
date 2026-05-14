@@ -3,19 +3,20 @@
 import json
 import logging
 import os
+import queue
 import socketserver
+import threading
 from datetime import datetime
 from http.server import SimpleHTTPRequestHandler
 from typing import TYPE_CHECKING, Optional, Dict, Any
 from urllib.parse import urlparse, parse_qs
-import threading
 
 if TYPE_CHECKING:
     from fastworker.workers.control_plane import ControlPlaneWorker
+    from fastworker.utils.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
 
-# Get the directory where static files are stored
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
@@ -29,28 +30,39 @@ class ThreadingHTTPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 class ManagementRequestHandler(SimpleHTTPRequestHandler):
     """HTTP request handler for management GUI."""
 
-    # Set the directory for static files
     directory = STATIC_DIR
-
-    # Reference to control plane worker (set by server)
     control_plane: Optional["ControlPlaneWorker"] = None
+    event_bus: Optional["EventBus"] = None
+    api_key: Optional[str] = None
+    allowed_origins: str = "*"
 
     def log_message(self, format, *args):
-        """Override to use Python logging."""
         logger.debug(f"GUI HTTP: {args[0]}")
 
+    def _check_auth(self) -> bool:
+        """Check Bearer token auth for write endpoints. Returns True if allowed."""
+        if not self.api_key:
+            return True
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            return auth[7:] == self.api_key
+        return False
+
+    def _set_cors(self):
+        self.send_header("Access-Control-Allow-Origin", self.allowed_origins)
+
     def _send_json_response(self, data: Dict[str, Any], status: int = 200):
-        """Send JSON response."""
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._set_cors()
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(json.dumps(data, default=str).encode("utf-8"))
 
+    def _send_error_response(self, message: str, status: int = 400):
+        self._send_json_response({"error": message}, status)
+
     def _send_static_file(self, filepath: str):
-        """Serve a static file."""
-        # Map file extensions to MIME types
         mime_types = {
             ".html": "text/html",
             ".css": "text/css",
@@ -68,7 +80,6 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         content_type = mime_types.get(ext, "application/octet-stream")
 
         try:
-            # Prevent directory traversal
             safe_path = os.path.normpath(os.path.join(STATIC_DIR, filepath.lstrip("/")))
             if not safe_path.startswith(STATIC_DIR):
                 self.send_error(403, "Forbidden")
@@ -83,7 +94,6 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(content)
         except FileNotFoundError:
-            # For SPA routing, serve index.html for non-API routes
             if not filepath.startswith("/api/"):
                 try:
                     index_path = os.path.join(STATIC_DIR, "index.html")
@@ -100,33 +110,26 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
                 self.send_error(404, "File not found")
 
     def do_OPTIONS(self):
-        """Handle CORS preflight requests."""
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self._set_cors()
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     def translate_path(self, path):
-        """Translate URL path to filesystem path, using STATIC_DIR as root."""
-        # Remove query string and fragment
         path = path.split("?", 1)[0]
         path = path.split("#", 1)[0]
-
-        # Normalize path
         path = os.path.normpath(path)
-
-        # Join with static directory
         return os.path.join(STATIC_DIR, path.lstrip("/"))
 
     def do_GET(self):
-        """Handle GET requests."""
         parsed = urlparse(self.path)
         path = parsed.path
         query = parse_qs(parsed.query)
 
-        # API endpoints
-        if path == "/api/status":
+        if path == "/api/events":
+            self._handle_sse()
+        elif path == "/api/status":
             self._handle_status()
         elif path == "/api/workers":
             self._handle_workers()
@@ -141,27 +144,126 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         elif path.startswith("/api/"):
             self.send_error(404, "API endpoint not found")
         else:
-            # Serve static files using SimpleHTTPRequestHandler
-            # For root path, serve index.html
             if path == "/":
                 self.path = "/index.html"
             super().do_GET()
 
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        # Require auth for write endpoints
+        if not self._check_auth():
+            self._send_error_response("Unauthorized — invalid or missing API key", 401)
+            return
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length) if content_length else b"{}"
+        try:
+            data = json.loads(body.decode("utf-8"))
+        except json.JSONDecodeError:
+            self._send_error_response("Invalid JSON body", 400)
+            return
+
+        if path.startswith("/api/tasks/") and path.endswith("/cancel"):
+            task_id = path.split("/")[3]
+            self._handle_cancel(task_id)
+        elif path.startswith("/api/tasks/") and path.endswith("/retry"):
+            task_id = path.split("/")[3]
+            self._handle_retry(task_id)
+        else:
+            self.send_error(404, "API endpoint not found")
+
+    def _handle_sse(self):
+        """Server-Sent Events endpoint for real-time updates."""
+        cp = self.control_plane
+        if not cp or not self.event_bus:
+            self.send_error(503, "Event bus not available")
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self._set_cors()
+        self.end_headers()
+
+        # Create a thread-safe queue and register with the event bus
+        t_queue: queue.Queue = queue.Queue()
+        self.server.sse_queues.append(t_queue)
+
+        try:
+            while True:
+                try:
+                    event = t_queue.get(timeout=15)
+                    event_name = event.get("name", "unknown")
+                    event_data = json.dumps(event.get("data", {}), default=str)
+
+                    self.wfile.write(f"event: {event_name}\n".encode())
+                    self.wfile.write(f"data: {event_data}\n\n".encode())
+                    self.wfile.flush()
+                except queue.Empty:
+                    # Send keepalive comment
+                    self.wfile.write(": heartbeat\n\n".encode())
+                    self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            logger.debug("SSE client disconnected")
+        finally:
+            if t_queue in self.server.sse_queues:
+                self.server.sse_queues.remove(t_queue)
+
+    def _handle_cancel(self, task_id: str):
+        """Cancel a task by ID (POST endpoint)."""
+        cp = self.control_plane
+        if not cp:
+            self._send_error_response("Control plane not available", 503)
+            return
+
+        cancelled = cp._handle_cancel(task_id) if hasattr(cp, "_handle_cancel") else False
+        if cancelled:
+            self._send_json_response({"task_id": task_id, "cancelled": True})
+        else:
+            self._send_error_response(
+                f"Task {task_id} not found or already terminal", 404
+            )
+
+    def _handle_retry(self, task_id: str):
+        """Retry a failed task by ID (POST endpoint)."""
+        cp = self.control_plane
+        if not cp:
+            self._send_error_response("Control plane not available", 503)
+            return
+
+        entry = cp.result_cache.get(task_id)
+        if not entry:
+            self._send_error_response(f"Task {task_id} not found", 404)
+            return
+
+        result = entry.get("result")
+        if not result or result.status.value != "failure":
+            self._send_error_response("Task is not in a retryable state", 400)
+            return
+
+        # Re-queue the task by creating a new one and submitting it
+        from fastworker.tasks.models import Task, TaskStatus
+        from fastworker.tasks.serial import TaskSerializer as _  # noqa
+
+        cp.active_tasks.pop(task_id, None)
+        cp._cancel_events.pop(task_id, None)
+        cp.task_queue[TaskPriority.NORMAL].append(result)
+
+        self._send_json_response({"task_id": task_id, "retrying": True})
+
     def _handle_status(self):
-        """Get overall control plane status."""
         if not self.control_plane:
             self._send_json_response({"error": "Control plane not available"}, 503)
             return
 
         cp = self.control_plane
-
-        # Count active vs inactive subworkers
         active_workers = sum(
             1 for w in cp.subworkers.values() if w["status"] == "active"
         )
         inactive_workers = len(cp.subworkers) - active_workers
-
-        # Calculate queue depths
         total_queued = sum(len(q) for q in cp.task_queue.values())
 
         status = {
@@ -169,7 +271,7 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
             "running": cp.running,
             "base_address": cp.base_address,
             "discovery_address": cp.discovery_address,
-            "uptime_seconds": None,  # Could be added later
+            "uptime_seconds": None,
             "subworkers": {
                 "total": len(cp.subworkers),
                 "active": active_workers,
@@ -191,7 +293,6 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         self._send_json_response(status)
 
     def _handle_workers(self):
-        """Get worker information including control plane."""
         if not self.control_plane:
             self._send_json_response({"error": "Control plane not available"}, 503)
             return
@@ -199,7 +300,6 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         cp = self.control_plane
         workers = []
 
-        # Add control plane as a worker (it processes tasks too)
         workers.append(
             {
                 "id": cp.worker_id,
@@ -212,7 +312,6 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
             }
         )
 
-        # Add subworkers
         for worker_id, info in cp.subworkers.items():
             workers.append(
                 {
@@ -237,12 +336,10 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         self._send_json_response({"workers": workers, "count": len(workers)})
 
     def _handle_tasks(self, query: Dict):
-        """Get task information from cache."""
         if not self.control_plane:
             self._send_json_response({"error": "Control plane not available"}, 503)
             return
 
-        # Get pagination params
         limit = int(query.get("limit", [50])[0])
         offset = int(query.get("offset", [0])[0])
         status_filter = query.get("status", [None])[0]
@@ -250,7 +347,6 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         tasks = []
         cache_items = list(self.control_plane.result_cache.items())
 
-        # Apply filters and pagination
         filtered_items = cache_items
         if status_filter:
             filtered_items = [
@@ -286,14 +382,11 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         )
 
     def _handle_cache_stats(self):
-        """Get cache statistics."""
         if not self.control_plane:
             self._send_json_response({"error": "Control plane not available"}, 503)
             return
 
         cp = self.control_plane
-
-        # Count by status
         status_counts = {}
         for entry in cp.result_cache.values():
             status = entry["result"].status.value
@@ -314,20 +407,18 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         self._send_json_response(stats)
 
     def _handle_queue_stats(self):
-        """Get queue statistics."""
         if not self.control_plane:
             self._send_json_response({"error": "Control plane not available"}, 503)
             return
 
         cp = self.control_plane
-
         queues = {}
-        for priority, queue in cp.task_queue.items():
+        for priority, task_q in cp.task_queue.items():
             queues[priority.value] = {
-                "count": len(queue),
+                "count": len(task_q),
                 "tasks": [
                     {"id": task.id, "name": task.name}
-                    for task in list(queue)[:10]  # First 10 tasks
+                    for task in list(task_q)[:10]
                 ],
             }
 
@@ -339,7 +430,6 @@ class ManagementRequestHandler(SimpleHTTPRequestHandler):
         )
 
     def _handle_registered_tasks(self):
-        """Get registered task definitions."""
         from fastworker.tasks.registry import task_registry
 
         tasks = []
@@ -367,31 +457,50 @@ class ManagementServer:
         control_plane: "ControlPlaneWorker",
         host: str = "127.0.0.1",
         port: int = 8080,
+        event_bus: Optional["EventBus"] = None,
     ):
         self.control_plane = control_plane
         self.host = host
         self.port = port
+        self.event_bus = event_bus
         self.server: Optional[ThreadingHTTPServer] = None
         self.thread: Optional[threading.Thread] = None
         self._running = False
+        self.sse_queues: list[queue.Queue] = []
+
+        self.api_key = os.getenv("FASTWORKER_GUI_API_KEY")
+        self.allowed_origins = os.getenv(
+            "FASTWORKER_GUI_CORS_ORIGIN", "*"
+        )
 
     def start(self):
-        """Start the management server in a background thread."""
         if self._running:
             return
 
-        # Create custom handler class with control plane reference and static directory
         handler_class = type(
             "CustomHandler",
             (ManagementRequestHandler,),
-            {"control_plane": self.control_plane, "directory": STATIC_DIR},
+            {
+                "control_plane": self.control_plane,
+                "event_bus": self.event_bus,
+                "api_key": self.api_key,
+                "allowed_origins": self.allowed_origins,
+                "directory": STATIC_DIR,
+            },
         )
 
         try:
             self.server = ThreadingHTTPServer((self.host, self.port), handler_class)
+            # Attach SSE queues to the server for thread-safe access
+            self.server.sse_queues = self.sse_queues
             self._running = True
 
-            # Run server in background thread using serve_forever
+            # Start background task to bridge EventBus → SSE queues
+            if self.event_bus:
+                threading.Thread(
+                    target=self._bridge_events, daemon=True
+                ).start()
+
             self.thread = threading.Thread(
                 target=self.server.serve_forever, daemon=True
             )
@@ -403,8 +512,26 @@ class ManagementServer:
             logger.error(f"Failed to start management server: {e}")
             raise
 
+    def _bridge_events(self):
+        """Bridge asyncio EventBus events to thread-safe queues for SSE clients."""
+        import asyncio
+
+        async def bridge():
+            async for event in self.event_bus.subscribe():
+                for q in list(self.sse_queues):
+                    try:
+                        q.put_nowait(event)
+                    except queue.Full:
+                        pass
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(bridge())
+        except Exception as e:
+            logger.debug(f"Event bridge ended: {e}")
+
     def stop(self):
-        """Stop the management server."""
         self._running = False
         if self.server:
             self.server.shutdown()

@@ -35,15 +35,18 @@ fastworker control-plane \
 | `--gui-host` | `127.0.0.1` | Management GUI host |
 | `--gui-port` | `8080` | Management GUI port |
 | `--no-gui` | `false` | Disable management GUI |
+| `--concurrency` | `1` | Max concurrent task executions |
 
 ## Task Distribution
 
-The control plane uses intelligent task distribution:
+The control plane uses intelligent task distribution backed by formal state machines:
 
 1. **Load Balancing**: Tasks sent to subworker with lowest load
 2. **Priority Handling**: Tasks processed in priority order (CRITICAL → HIGH → NORMAL → LOW)
 3. **Fallback**: Control plane processes tasks if no subworkers available
-4. **Health Monitoring**: Inactive subworkers automatically excluded
+4. **Health Monitoring**: Inactive subworkers automatically excluded via subworker registry state machine (ACTIVE → INACTIVE → REMOVED)
+5. **Scheduled Tasks**: Tasks with ETA/countdown held in priority heap, dispatched when ready
+6. **Batch Submission**: Multiple tasks submitted atomically in a single message
 
 ## Result Caching
 

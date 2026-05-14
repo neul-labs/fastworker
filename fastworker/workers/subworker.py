@@ -33,6 +33,7 @@ class SubWorker(Worker):
         base_address: Optional[str] = None,
         discovery_address: Optional[str] = None,
         serialization_format: Optional[SerializationFormat] = None,
+        concurrency: Optional[int] = None,
     ):
         # Load from environment variables with fallback to defaults
         worker_id = worker_id or os.getenv("FASTWORKER_WORKER_ID")
@@ -66,8 +67,12 @@ class SubWorker(Worker):
                 if format_str == "PICKLE"
                 else SerializationFormat.JSON
             )
+        if concurrency is None:
+            concurrency = int(os.getenv("FASTWORKER_WORKER_CONCURRENCY", "1"))
+
         super().__init__(
-            worker_id, base_address, discovery_address, serialization_format
+            worker_id, base_address, discovery_address, serialization_format,
+            concurrency=concurrency,
         )
 
         # Override discovery bus - subworkers should DIAL, not LISTEN

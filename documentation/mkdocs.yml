@@ -59,6 +59,8 @@ nav:
   - Getting Started:
     - Quick Start: getting-started/quickstart.md
     - Installation: getting-started/installation.md
+    - Why FastWorker?: getting-started/why-fastworker.md
+    - Project Structure: getting-started/project-structure.md
     - Configuration: getting-started/configuration.md
   - Core Concepts:
     - Architecture: concepts/architecture.md
@@ -70,14 +72,18 @@ nav:
     - Client Usage: guide/client.md
     - Task Priorities: guide/priorities.md
     - Result Caching: guide/caching.md
+    - Periodic & Cron Tasks: guide/periodic-tasks.md
     - Management GUI: guide/gui.md
   - Integration:
     - FastAPI: integration/fastapi.md
     - Other Frameworks: integration/frameworks.md
   - Advanced:
+    - Extending FastWorker: advanced/extending.md
+    - Internals: advanced/internals.md
     - OpenTelemetry: advanced/telemetry.md
   - Reference:
     - API Reference: reference/api.md
+    - Benchmarks: reference/benchmarks.md
     - Troubleshooting: reference/troubleshooting.md
     - Limitations: reference/limitations.md
 

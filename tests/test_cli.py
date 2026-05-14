@@ -40,6 +40,7 @@ def test_start_worker(mock_run, mock_worker_class):
     args.base_address = "tcp://127.0.0.1:5555"
     args.discovery_address = "tcp://127.0.0.1:5550"
     args.task_modules = ["test_module"]
+    args.concurrency = None
 
     with patch("fastworker.cli.load_tasks") as mock_load:
         start_worker(args)
@@ -49,6 +50,7 @@ def test_start_worker(mock_run, mock_worker_class):
             worker_id="test-worker",
             base_address="tcp://127.0.0.1:5555",
             discovery_address="tcp://127.0.0.1:5550",
+            concurrency=1,
         )
         mock_run.assert_called_once_with(mock_worker.start())
 
@@ -91,6 +93,8 @@ def test_list_tasks(mock_registry):
 
     args = Mock()
     args.task_modules = ["test_module"]
+    args.list_periodic = False
+    args.tree = False
 
     with patch("fastworker.cli.load_tasks") as mock_load:
         with patch("builtins.print") as mock_print:

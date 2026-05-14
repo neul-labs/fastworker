@@ -4,7 +4,7 @@ This document helps Claude Code and other AI assistants understand the FastWorke
 
 ## Project Overview
 
-**FastWorker** is a brokerless task queue for Python applications with automatic worker discovery, priority handling, and built-in management GUI. It eliminates the need for external message brokers like Redis or RabbitMQ by using a control plane architecture with NNG (nanomsg-next-generation) for messaging.
+**FastWorker** is a brokerless task queue for Python applications with automatic worker discovery, priority handling, and built-in management GUI. It eliminates the need for external message brokers like Redis or RabbitMQ by using a control plane architecture with NNG (nanomsg-next-generation) for messaging. Formal state machines manage task, worker, subworker, and client lifecycles with atomic transitions for safe concurrency.
 
 **Target Use Case**: Moderate-scale Python applications (1K-10K tasks/min)
 **Language**: Python 3.12+
@@ -64,10 +64,15 @@ fastworker/
 │   ├── tasks/              # Task management
 │   │   ├── models.py       # Task models (Task, TaskResult, TaskPriority)
 │   │   ├── registry.py     # Task registry and decorator
+│   │   ├── state.py        # TaskStateMachine (9-state lifecycle)
 │   │   └── serializer.py   # Task serialization
 │   │
+│   ├── utils/              # Utilities
+│   │   ├── state_machine.py # Generic async StateMachine[S]
+│   │   └── event_bus.py    # asyncio.Queue-based pub/sub EventBus
+│   │
 │   ├── patterns/           # NNG communication patterns
-│   │   └── nng_patterns.py # REQ/REP, PUSH/PULL patterns
+│   │   └── nng_patterns.py # ReqRep, Bus, Pair, SurveyorRespondent
 │   │
 │   ├── telemetry/          # Optional OpenTelemetry integration
 │   │   ├── tracer.py       # Distributed tracing
@@ -109,6 +114,10 @@ fastworker/
 - **`fastworker/cli.py`**: CLI commands implementation (typer-based)
 - **`fastworker/tasks/registry.py`**: Task decorator and registration system
 - **`fastworker/tasks/models.py`**: Core data models (Task, TaskResult, TaskPriority, TaskStatus)
+- **`fastworker/tasks/state.py`**: TaskStateMachine with 9 states and atomic transitions
+- **`fastworker/workers/state.py`**: WorkerStateMachine with 6 states (INIT→RUNNING→STOPPED)
+- **`fastworker/utils/state_machine.py`**: Generic async StateMachine base class with asyncio.Lock
+- **`fastworker/utils/event_bus.py`**: EventBus for publishing state transitions to GUI/telemetry
 - **`fastworker/workers/control_plane.py`**: Control plane implementation with result caching and GUI integration
 - **`fastworker/workers/subworker.py`**: Subworker that registers with control plane
 - **`fastworker/clients/client.py`**: Client for task submission (blocking and non-blocking)
@@ -125,6 +134,42 @@ fastworker/
 - **`fastworker/patterns/nng_patterns.py`**: NNG socket patterns (REQ/REP, PUSH/PULL)
 - Uses TCP sockets for inter-process communication
 - Default addresses: tcp://127.0.0.1:5555 (control plane), tcp://127.0.0.1:5550 (discovery)
+
+## State Machine Architecture
+
+FastWorker uses formal state machines for all major lifecycles. Each state machine is backed by `fastworker.utils.StateMachine[S]` — a generic async base class with `asyncio.Lock`-protected atomic transitions and event callbacks.
+
+### Task State Machine (9 states)
+```
+PENDING → QUEUED/SCHEDULED → ASSIGNED → RUNNING → SUCCESS | FAILURE → RETRYING
+         ↓                                             ↓
+      CANCELLED                                    CANCELLED
+```
+- Terminal states (SUCCESS, CANCELLED) are immutable
+- FAILURE auto-routes to RETRYING→QUEUED if `retry_count < max_retries`
+- All transitions emit events through EventBus → GUI SSE / telemetry
+
+### Worker Lifecycle (6 states)
+```
+INIT → STARTING → RUNNING → DRAINING → STOPPING → STOPPED
+```
+- Tasks accepted only in RUNNING state
+- DRAINING: finish in-flight tasks, reject new work
+- Graceful shutdown respects `shutdown_timeout`
+
+### Subworker Registry (5 states)
+```
+DISCOVERED → REGISTERING → ACTIVE → INACTIVE → REMOVED
+```
+- ACTIVE→INACTIVE on missed heartbeat (>30s)
+- INACTIVE→REMOVED after max age, tasks re-assigned
+
+### Client Connection (4 states)
+```
+DISCONNECTED → DISCOVERING → CONNECTED → RECONNECTING
+```
+- Event-driven discovery (no `asyncio.sleep` hack)
+- Pending task queue flushes on RECONNECTING→CONNECTED
 
 ## Key Concepts
 
@@ -213,13 +258,13 @@ uv run pytest tests/test_client.py
 
 ```bash
 # Format code
-uv run black .
+uv run ruff format .
 
-# Check formatting
-uv run black . --check
+# Check formatting and lint
+uv run ruff check .
 
-# Lint code
-uv run flake8
+# Auto-fix lint issues
+uv run ruff check --fix .
 ```
 
 ### Local Testing
@@ -295,10 +340,19 @@ npm run build
 
 ```
 tests/
-├── test_client.py          # Client functionality tests
-├── test_tasks.py           # Task decorator and registry tests
-├── test_workers.py         # Worker behavior tests
-└── test_serializer.py      # Serialization tests
+├── test_client.py             # Client functionality tests
+├── test_cli.py                # CLI commands tests
+├── test_control_plane.py      # Control plane worker tests
+├── test_models.py             # Task models tests
+├── test_serializer.py         # Serialization tests
+├── test_state_machine.py      # Generic StateMachine tests
+├── test_task_state.py         # TaskStateMachine tests
+├── test_worker_state.py       # WorkerStateMachine tests
+├── test_nng_patterns.py       # NNG pattern tests
+├── test_telemetry_tracer.py   # Telemetry tracer tests
+├── test_telemetry_metrics.py  # Telemetry metrics tests
+├── test_gui_server.py         # GUI server tests
+└── integration_test.py        # End-to-end integration tests
 ```
 
 ### Testing Guidelines
@@ -401,10 +455,11 @@ uv publish
 ### Code Review Checklist
 
 - [ ] Tests pass (`uv run pytest`)
-- [ ] Code formatted (`uv run black .`)
+- [ ] Code formatted and linted (`uv run ruff format . && uv run ruff check .`)
 - [ ] No new external dependencies unless critical
 - [ ] Documentation updated (README.md, docs/)
 - [ ] Examples still work
+- [ ] State machine transitions validated if adding new states
 - [ ] Backward compatible or version bumped appropriately
 
 ## Resources
@@ -420,5 +475,5 @@ For questions or contributions, see CONTRIBUTING.md or open an issue on GitHub.
 
 ---
 
-**Last Updated**: 2025-12-02
-**Version**: 0.1.1
+**Last Updated**: 2026-05-14
+**Version**: 0.2.0

@@ -310,6 +310,67 @@ def process_file(file_path):
 
 ---
 
+## GUI Issues
+
+### GUI Not Loading
+
+**Solutions:**
+
+1. **Check GUI is enabled:**
+   ```bash
+   # Ensure --no-gui flag is NOT set
+   fastworker control-plane --task-modules tasks
+   ```
+
+2. **Verify port:**
+   ```bash
+   curl http://127.0.0.1:8080/api/status
+   ```
+
+### SSE Live Updates Not Working
+
+**Solutions:**
+
+1. Check the connection indicator in the GUI header - green means connected
+2. The GUI falls back to polling every 15 seconds if SSE drops
+3. Check browser console for EventSource errors
+4. Older browsers may not support EventSource
+
+### GUI Write Endpoints Return 401
+
+**Solutions:**
+
+1. Set the API key on the server:
+   ```bash
+   export FASTWORKER_GUI_API_KEY=my-secret-key
+   ```
+
+2. Include the key in requests:
+   ```bash
+   curl -X POST http://127.0.0.1:8080/api/tasks/abc123/cancel \
+     -H "Authorization: Bearer my-secret-key"
+   ```
+
+---
+
+## Concurrency Issues
+
+### Tasks Not Running Concurrently
+
+**Solutions:**
+
+1. **Set concurrency:**
+   ```bash
+   fastworker control-plane --concurrency 4 --task-modules tasks
+   ```
+
+2. **Via environment variable:**
+   ```bash
+   export FASTWORKER_WORKER_CONCURRENCY=4
+   ```
+
+---
+
 ## Common Error Messages
 
 | Error | Cause | Solution |
@@ -319,6 +380,9 @@ def process_file(file_path):
 | "Task 'name' not found" | Task not registered | Use `--task-modules` flag |
 | "Connection refused" | Cannot connect | Verify worker is running, check firewall |
 | "Not JSON serializable" | Non-JSON type in result | Convert to JSON-compatible types |
+| "Task cancelled" | Task was cancelled via CLI/API | Task state is terminal, re-submit if needed |
+| "401 Unauthorized" | Missing/invalid API key | Set `FASTWORKER_GUI_API_KEY` and pass `Authorization: Bearer` header |
+| "Invalid state transition" | State machine invariant violated | Concurrent operation conflict, retry the operation |
 
 ---
 

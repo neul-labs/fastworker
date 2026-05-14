@@ -50,7 +50,7 @@ class TaskSerializer:
             warnings.warn(
                 "PICKLE serialization is NOT secure and can execute arbitrary code. "
                 "Consider using JSON serialization for untrusted networks.",
-                SecurityWarning,
+                RuntimeWarning,
                 stacklevel=2,
             )
             return pickle.dumps(data)
@@ -79,7 +79,7 @@ class TaskSerializer:
             warnings.warn(
                 "PICKLE deserialization is NOT secure. "
                 "Only deserialize data from trusted sources.",
-                SecurityWarning,
+                RuntimeWarning,
                 stacklevel=2,
             )
             return pickle.loads(data)

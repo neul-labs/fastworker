@@ -1,149 +1,124 @@
-"""Example FastAPI application using FastWorker."""
+"""Example FastAPI application using FastWorker.
 
-from fastapi import FastAPI, BackgroundTasks
-from fastworker import task, Client
+This example demonstrates:
+- Zero-boilerplate FastWorker integration with FastWorker(app)
+- Non-blocking task submission with delay()
+- Blocking submission with submit_task()
+- Task callbacks with delay_with_callback()
+- Health check using fw.worker_count
+- Custom Client configuration via client_kwargs
+"""
+
+from fastapi import FastAPI
+
+from fastworker import task
+from fastworker.integration.fastapi import FastWorker
 from fastworker.tasks.models import TaskPriority
-import asyncio
 
-# Create FastAPI app
 app = FastAPI(title="FastWorker FastAPI Example")
+fw = FastWorker(app)  # handles all lifecycle automatically
 
 
-# Define some tasks
-@task
-def process_user_registration(user_id: int, email: str) -> str:
-    """Process user registration."""
-    # Simulate some work
-    print(f"Processing registration for user {user_id} with email {email}")
-    return f"User {user_id} registered successfully"
+# -- Task definitions --
 
 
 @task
-def send_notification(user_id: int, message: str) -> str:
-    """Send notification to user."""
-    # Simulate sending notification
-    print(f"Sending notification to user {user_id}: {message}")
-    return f"Notification sent to user {user_id}"
+def send_welcome_email(user_id: int, email: str) -> str:
+    """Send a welcome email."""
+    return f"Welcome email sent to user {user_id} at {email}"
 
 
 @task
-async def async_data_processing(data: dict) -> dict:
-    """Async data processing task."""
-    print(f"Processing data: {data}")
-    await asyncio.sleep(1)  # Simulate async work
-    return {"status": "processed", "data": data}
+def generate_report(report_type: str, params: dict) -> dict:
+    """Generate a report."""
+    return {"report_type": report_type, "status": "generated", "params": params}
 
 
-# Global client instance
-# (in a real app, you might want to manage this differently)
-client = None
+@task
+def cleanup_temp_files(directory: str) -> int:
+    """Clean up temporary files."""
+    return 42  # files deleted
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize FastWorker client on startup."""
-    global client
-    client = Client()
-    await client.start()
-    print("FastWorker client initialized")
+# -- API Endpoints --
 
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up FastWorker client on shutdown."""
-    if client:
-        client.stop()
-        print("FastWorker client stopped")
+@app.post("/users/{user_id}/welcome")
+async def welcome_user(user_id: int, email: str):
+    """Non-blocking: returns task ID immediately."""
+    task_id = await fw.delay("send_welcome_email", user_id, email)
+    return {"task_id": task_id, "status": "queued"}
 
 
-@app.post("/register_user/")
-async def register_user(user_id: int, email: str, background_tasks: BackgroundTasks):
-    """Register a new user."""
-    # Submit task to FastWorker
-    if client:
-        # For immediate response, we can use FastAPI's background tasks for simple cases
-        # or FastWorker for more complex distributed processing
-        background_tasks.add_task(process_user_registration, user_id, email)
-
-        # Or submit to FastWorker for distributed processing
-        # result = await client.delay(
-        #     "process_user_registration", user_id, email, priority=TaskPriority.HIGH
-        # )
-
-        return {"message": "User registration started", "user_id": user_id}
-    else:
-        return {"error": "FastWorker client not available"}
+@app.post("/reports/{report_type}")
+async def create_report(report_type: str, params: dict):
+    """Blocking: waits for the report to finish."""
+    result = await fw.submit_task(
+        "generate_report", args=(report_type, params),
+        priority=TaskPriority.HIGH,
+    )
+    return {"status": result.status.value, "result": result.result}
 
 
-@app.post("/send_notification/")
-async def send_user_notification(user_id: int, message: str):
-    """Send notification to user."""
-    if client:
-        # Submit to FastWorker with high priority
-        result = await client.delay(
-            "send_notification", user_id, message, priority=TaskPriority.HIGH
-        )
-        if result.status == "success":
-            return {"message": "Notification sent", "result": result.result}
-        else:
-            return {"error": result.error}
-    else:
-        return {"error": "FastWorker client not available"}
+@app.post("/tasks/cleanup")
+async def trigger_cleanup():
+    """With callback: get notified when cleanup completes."""
+    task_id = await fw.delay_with_callback(
+        "cleanup_temp_files", "tcp://127.0.0.1:6000",
+        "/tmp", priority=TaskPriority.LOW,
+        callback_data={"notify": "admin"},
+    )
+    return {"task_id": task_id, "status": "scheduled"}
 
 
-@app.post("/process_data/")
-async def process_data(data: dict):
-    """Process data asynchronously."""
-    if client:
-        # Submit async task to FastWorker
-        result = await client.delay(
-            "async_data_processing", data, priority=TaskPriority.NORMAL
-        )
-        if result.status == "success":
-            return {"message": "Data processing completed", "result": result.result}
-        else:
-            return {"error": result.error}
-    else:
-        return {"error": "FastWorker client not available"}
+@app.post("/tasks/batch")
+async def batch_submit():
+    """Submit multiple tasks atomically."""
+    task_ids = await fw.submit_batch([
+        {"task_name": "send_welcome_email", "args": (101, "a@b.com")},
+        {"task_name": "send_welcome_email", "args": (102, "c@d.com")},
+        {"task_name": "cleanup_temp_files", "args": ("/tmp",)},
+    ])
+    return {"task_ids": task_ids, "count": len(task_ids)}
 
 
-@app.post("/process_data_with_callback/")
-async def process_data_with_callback(data: dict, callback_address: str):
-    """Process data asynchronously with a callback when finished."""
-    if client:
-        # Submit async task to FastWorker with callback
-        result = await client.delay_with_callback(
-            "async_data_processing",
-            callback_address,
-            data,
-            priority=TaskPriority.NORMAL,
-            callback_data={"endpoint": "/process_data_with_callback/"},
-        )
-        if result.status == "success":
-            return {"message": "Data processing started", "task_id": result.task_id}
-        else:
-            return {"error": result.error}
-    else:
-        return {"error": "FastWorker client not available"}
+@app.get("/tasks/{task_id}")
+async def task_status(task_id: str):
+    """Query task result/status."""
+    result = await fw.get_task_result(task_id)
+    if result:
+        return {"task_id": task_id, "status": result.status.value, "result": result.result}
+    local = fw.get_result(task_id)
+    if local:
+        return {"task_id": task_id, "status": local.status.value, "local": True}
+    return {"task_id": task_id, "status": "not_found"}
+
+
+@app.delete("/tasks/{task_id}")
+async def cancel_task(task_id: str):
+    """Cancel a queued or running task."""
+    cancelled = await fw.cancel_task(task_id)
+    return {"task_id": task_id, "cancelled": cancelled}
+
+
+@app.get("/health")
+async def health():
+    """Health check including worker discovery status."""
+    return {
+        "status": "healthy",
+        "workers_discovered": fw.worker_count,
+    }
 
 
 @app.get("/")
 async def root():
-    """Root endpoint."""
-    return {"message": "FastWorker FastAPI Example"}
+    return {"message": "FastWorker + FastAPI — Zero Broker. Pure Python."}
 
 
-# To run this example:
-# 1. Start one or more FastWorker workers in separate terminals:
-#    fastworker worker --worker-id worker1 --task-modules fastworker.examples.tasks
+# To run:
+#   Terminal 1: fastworker control-plane --task-modules fastworker.examples.fastapi_example
+#   Terminal 2: uvicorn fastworker.examples.fastapi_example:app --reload
 #
-# 2. Run this FastAPI application:
-#    uvicorn fastworker.examples.fastapi_example:app --reload
-#
-# 3. Make requests to the endpoints:
-#    curl -X POST "http://127.0.0.1:8000/register_user/?user_id=1&email=test@ex.com"
-#    curl -X POST "http://127.0.0.1:8000/send_notification/?user_id=1&message=Hello"
-#    curl -X POST "http://127.0.0.1:8000/process_data/" \
-#      -H "Content-Type: application/json" -d '{"key": "value"}'
-#    curl -X POST "http://127.0.0.1:8000/process_data_with_callback/?..." \
-#      -H "Content-Type: application/json" -d '{"key": "value"}'
+#   curl -X POST "http://127.0.0.1:8000/users/42/welcome?email=hi@example.com"
+#   curl -X POST "http://127.0.0.1:8000/reports/sales" -H "Content-Type: application/json" -d '{"period":"Q1"}'
+#   curl http://127.0.0.1:8000/health

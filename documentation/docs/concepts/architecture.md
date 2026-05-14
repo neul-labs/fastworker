@@ -57,6 +57,57 @@ Clients connect to the control plane to:
 - Query task results
 - Check task status
 
+## State Machine Architecture
+
+All major components use formal state machines backed by `StateMachine[S]` — a generic async base class with `asyncio.Lock`-protected atomic transitions. Every state transition emits an event through the `EventBus` for real-time monitoring.
+
+### Task State Machine (9 states)
+
+```
+PENDING → QUEUED/SCHEDULED → ASSIGNED → RUNNING → SUCCESS | FAILURE → RETRYING
+         ↓                                             ↓
+      CANCELLED                                    CANCELLED
+```
+
+- Terminal states (`SUCCESS`, `CANCELLED`) are immutable
+- `FAILURE` auto-routes to `RETRYING` → `QUEUED` when retries remain
+- Every transition publishes events to the EventBus → GUI SSE / telemetry
+
+### Worker Lifecycle (6 states)
+
+```
+INIT → STARTING → RUNNING → DRAINING → STOPPING → STOPPED
+```
+
+- Tasks accepted only in `RUNNING` state
+- `DRAINING`: finish in-flight tasks, reject new work
+- `STOPPING → STOPPED` after all sockets released
+
+### Subworker Registry (5 states)
+
+```
+DISCOVERED → REGISTERING → ACTIVE → INACTIVE → REMOVED
+```
+
+- `ACTIVE → INACTIVE` on missed heartbeat (>30s)
+- `INACTIVE → REMOVED` after max age, tasks re-assigned
+
+### Client Connection (4 states)
+
+```
+DISCONNECTED → DISCOVERING → CONNECTED → RECONNECTING
+```
+
+- Event-driven discovery with automatic reconnection
+- Pending tasks flush on `RECONNECTING → CONNECTED`
+
+### Event Bus
+
+The `EventBus` (asyncio.Queue-based pub/sub) bridges state transitions to external consumers:
+- **GUI SSE** — real-time dashboard updates via Server-Sent Events
+- **Telemetry** — OpenTelemetry metrics and tracing hooks
+- Events include `task.queued`, `task.started`, `task.success`, `task.failure`, `task.cancelled`, `task.retrying`
+
 ## Communication Patterns
 
 FastWorker uses [NNG (nanomsg-next-generation)](https://nng.nanomsg.org/) for all communication:
@@ -65,7 +116,9 @@ FastWorker uses [NNG (nanomsg-next-generation)](https://nng.nanomsg.org/) for al
 |---------|----------|
 | REQ/REP | Task submission and result retrieval |
 | PUSH/PULL | Task distribution to workers |
-| PUB/SUB | Service discovery announcements |
+| BUS | Service discovery announcements and worker mesh |
+| PAIR | Bidirectional worker-to-worker communication |
+| SURVEYOR/RESPONDENT | Subworker health checks and task assignment |
 
 ## Port Allocation
 

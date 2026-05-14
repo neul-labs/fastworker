@@ -116,7 +116,8 @@ venv.bak
 .ropeproject
 
 # mkdocs documentation
-/site
+documentation/site/
+docs/
 
 # mypy
 .mypy_cache/
@@ -147,4 +148,5 @@ Thumbs.db
 fastworker-env
 mytasks.py
 
+node_modules/
 .claude/

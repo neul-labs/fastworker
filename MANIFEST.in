@@ -1,12 +1,11 @@
 include README.md
 include LICENSE
-include CHANGELOG.md
 include CONTRIBUTING.md
 include pyproject.toml
 
-recursive-include fastqueue *.py
+recursive-include fastworker *.py
 recursive-include docs *.md
-recursive-include fastqueue/examples *.py
+recursive-include fastworker/examples *.py
 
 # Exclude unnecessary files
 global-exclude *.pyc

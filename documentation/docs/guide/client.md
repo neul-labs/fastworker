@@ -207,6 +207,50 @@ async def get_result(task_id: str):
     return {"error": "Result not found"}
 ```
 
+## Scheduled / Delayed Tasks
+
+Submit tasks with delayed execution:
+
+```python
+# Delay by 30 seconds
+task_id = await client.delay("my_task", countdown=30)
+
+# Execute at a specific future time
+from datetime import datetime, timedelta
+eta = datetime.now() + timedelta(hours=2)
+task_id = await client.delay("my_task", eta=eta)
+
+# With priority
+task_id = await client.delay("urgent_task", countdown=10, priority=TaskPriority.HIGH)
+```
+
+## Task Cancellation
+
+Cancel tasks by ID:
+
+```python
+cancelled = await client.cancel_task(task_id)
+if cancelled:
+    print(f"Task {task_id} cancelled")
+```
+
+## Batch Submission
+
+Submit multiple tasks in a single NNG message:
+
+```python
+tasks = [
+    {"task_name": "process_user", "args": (user_id,)},
+    {"task_name": "send_email", "kwargs": {"to": "user@example.com"}},
+    {"task_name": "generate_report", "args": (report_id,), "countdown": 60},
+]
+
+task_ids = await client.submit_batch(tasks, default_priority=TaskPriority.NORMAL)
+print(f"Submitted {len(task_ids)} tasks: {task_ids}")
+```
+
+All tasks in a batch are submitted atomically — either all are queued or none.
+
 ## Best Practices
 
 1. **Reuse Client Instances**: Create one client instance per application
@@ -215,3 +259,4 @@ async def get_result(task_id: str):
 4. **Handle Errors Gracefully**: Always check task results for failures
 5. **Set Appropriate Timeouts**: Adjust timeouts based on task complexity
 6. **Monitor Control Plane**: Ensure control plane is running and healthy
+7. **Use Batch Submission**: Group independent tasks with `submit_batch()` to reduce network overhead

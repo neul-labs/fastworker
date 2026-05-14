@@ -71,16 +71,93 @@ task_id = await client.delay("my_task", priority="high")
 | `NORMAL` | 2 | Default priority |
 | `LOW` | 3 | Lowest priority, processed last |
 
-## Task Status
+## Task State Machine
 
-Tasks have the following status values:
+FastWorker uses a formal state machine to manage each task's lifecycle. States transition atomically under an `asyncio.Lock`, ensuring safe concurrent operations.
+
+```
+PENDING → QUEUED/SCHEDULED → ASSIGNED → RUNNING → SUCCESS | FAILURE → RETRYING
+         ↓                                             ↓
+      CANCELLED                                    CANCELLED
+```
+
+### Task Status
 
 | Status | Description |
 |--------|-------------|
-| `PENDING` | Task submitted, waiting for processing |
-| `STARTED` | Task is being processed |
-| `SUCCESS` | Task completed successfully |
+| `PENDING` | Task created, not yet queued |
+| `SCHEDULED` | Task delayed with ETA, waiting for its execution time |
+| `QUEUED` | Task in queue, waiting to be assigned |
+| `ASSIGNED` | Task assigned to a worker |
+| `RUNNING` | Task is being processed |
+| `SUCCESS` | Task completed successfully (terminal) |
 | `FAILURE` | Task failed with an error |
+| `RETRYING` | Task is being retried (transitions back to QUEUED) |
+| `CANCELLED` | Task was cancelled (terminal) |
+
+Terminal states (`SUCCESS`, `CANCELLED`) are immutable — no further transitions allowed.
+
+## Task Retries
+
+Tasks can be configured with automatic retry policies:
+
+```python
+@task
+def flaky_operation() -> str:
+    # This task will be retried up to 3 times on failure
+    ...
+
+# Configure via Task model fields
+task = Task(
+    name="flaky_operation",
+    max_retries=3,
+    retry_delay=5.0,       # 5 seconds between retries
+    retry_backoff=2.0,     # exponential backoff multiplier
+)
+```
+
+## Task Timeouts
+
+Set per-task timeouts to prevent hung tasks:
+
+```python
+task = Task(
+    name="long_running",
+    timeout=120.0,  # 2 minute timeout
+)
+```
+
+## Scheduled / Delayed Tasks
+
+Submit tasks for future execution using ETA or countdown:
+
+```python
+from datetime import datetime, timedelta
+
+# Delay by 30 seconds
+task_id = await client.delay("my_task", countdown=30)
+
+# Execute at a specific time
+eta = datetime.now() + timedelta(hours=1)
+task_id = await client.delay("my_task", eta=eta)
+```
+
+## Task Cancellation
+
+Cancel queued or running tasks:
+
+=== "CLI"
+    ```bash
+    fastworker cancel --task-id <task-id>
+    ```
+
+=== "Python"
+    ```python
+    cancelled = await client.cancel_task(task_id)
+    ```
+
+=== "GUI"
+    Use the cancel button in the management GUI tasks table.
 
 ## Task Result
 

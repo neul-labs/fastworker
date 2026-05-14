@@ -31,6 +31,7 @@ export FASTWORKER_RETRIES="5"
 | `FASTWORKER_SUBWORKER_PORT` | Port for subworker management | `5560` |
 | `FASTWORKER_RESULT_CACHE_SIZE` | Maximum number of cached results | `10000` |
 | `FASTWORKER_RESULT_CACHE_TTL` | Cache TTL in seconds | `3600` (1 hour) |
+| `FASTWORKER_WORKER_CONCURRENCY` | Max concurrent task executions | `1` |
 
 ### GUI Configuration
 
@@ -39,6 +40,8 @@ export FASTWORKER_RETRIES="5"
 | `FASTWORKER_GUI_ENABLED` | `true` | Enable/disable the GUI |
 | `FASTWORKER_GUI_HOST` | `127.0.0.1` | GUI server host address |
 | `FASTWORKER_GUI_PORT` | `8080` | GUI server port |
+| `FASTWORKER_GUI_API_KEY` | — | API key for write endpoint authentication |
+| `FASTWORKER_GUI_CORS_ORIGIN` | `*` | Allowed CORS origin (comma-separated) |
 
 ### Subworker Configuration
 
@@ -47,6 +50,7 @@ export FASTWORKER_RETRIES="5"
 | `FASTWORKER_WORKER_ID` | Unique identifier for the subworker | **(required)** |
 | `FASTWORKER_CONTROL_PLANE_ADDRESS` | Address of the control plane | **(required)** |
 | `FASTWORKER_BASE_ADDRESS` | Base address for this subworker | `tcp://127.0.0.1:5555` |
+| `FASTWORKER_WORKER_CONCURRENCY` | Max concurrent task executions | `1` |
 
 ## Configuration Patterns
 
@@ -70,6 +74,9 @@ FASTWORKER_TIMEOUT=60
 FASTWORKER_RETRIES=5
 FASTWORKER_RESULT_CACHE_SIZE=50000
 FASTWORKER_RESULT_CACHE_TTL=7200
+FASTWORKER_WORKER_CONCURRENCY=4
+FASTWORKER_GUI_API_KEY=your-secret-key
+FASTWORKER_GUI_CORS_ORIGIN=https://your-domain.com
 ```
 
 ### Docker Compose

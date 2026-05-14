@@ -253,11 +253,25 @@ class Client:
         args: tuple = (),
         kwargs: Optional[Dict[str, Any]] = None,
         priority: TaskPriority = TaskPriority.NORMAL,
+        eta: Optional[Any] = None,
+        countdown: Optional[float] = None,
     ) -> TaskResult:
-        """Submit a task to workers and wait for result."""
-        # Create task
-        task = Task(name=task_name, args=args, kwargs=kwargs or {}, priority=priority)
+        """Submit a task to workers and wait for result.
 
+        Args:
+            eta: Absolute time (datetime) when the task should execute.
+            countdown: Seconds from now to delay execution.
+        """
+        from datetime import datetime, timedelta
+
+        task_kwargs = kwargs or {}
+        if countdown is not None:
+            eta = datetime.now() + timedelta(seconds=countdown)
+
+        task = Task(
+            name=task_name, args=args, kwargs=task_kwargs,
+            priority=priority, eta=eta,
+        )
         return await self._submit_task_internal(task)
 
     async def delay(
@@ -265,9 +279,21 @@ class Client:
         task_name: str,
         *args,
         priority: TaskPriority = TaskPriority.NORMAL,
+        eta: Optional[Any] = None,
+        countdown: Optional[float] = None,
         **kwargs,
     ) -> str:
-        """Submit a task and return immediately with task ID (non-blocking)."""
+        """Submit a task and return immediately with task ID (non-blocking).
+
+        Args:
+            eta: Absolute time (datetime) when the task should execute.
+            countdown: Seconds from now to delay execution.
+        """
+        from datetime import datetime, timedelta
+
+        if countdown is not None:
+            eta = datetime.now() + timedelta(seconds=countdown)
+
         with trace_operation(
             "client.submit_task",
             attributes={
@@ -277,13 +303,13 @@ class Client:
                 ),
             },
         ):
-            # Create task
-            task = Task(name=task_name, args=args, kwargs=kwargs, priority=priority)
+            task = Task(
+                name=task_name, args=args, kwargs=kwargs,
+                priority=priority, eta=eta,
+            )
 
-            # Record metric
             record_task_metric("submitted", task_name, priority=task.priority.value)
 
-            # Initialize pending result
             result = TaskResult(
                 task_id=task.id,
                 status=TaskStatus.PENDING,
@@ -294,10 +320,7 @@ class Client:
             )
             self.task_results[task.id] = result
 
-        # Submit task in background (non-blocking) - use create_task to ensure it runs
         asyncio.create_task(self._submit_task_internal_with_error_handling(task))
-
-        # Return task ID immediately
         return task.id
 
     async def _submit_task_internal_with_error_handling(self, task: Task):
@@ -332,9 +355,16 @@ class Client:
         *args,
         callback_data: Optional[Dict[str, Any]] = None,
         priority: TaskPriority = TaskPriority.NORMAL,
+        eta: Optional[Any] = None,
+        countdown: Optional[float] = None,
         **kwargs,
     ) -> str:
         """Submit a task with callback, returning task ID immediately (non-blocking)."""
+        from datetime import datetime, timedelta
+
+        if countdown is not None:
+            eta = datetime.now() + timedelta(seconds=countdown)
+
         # Create task with callback information
         task = Task(
             name=task_name,
@@ -342,6 +372,7 @@ class Client:
             kwargs=kwargs,
             priority=priority,
             callback=CallbackInfo(address=callback_address, data=callback_data),
+            eta=eta,
         )
 
         # Initialize pending result
@@ -360,6 +391,140 @@ class Client:
 
         # Return task ID immediately
         return task.id
+
+    async def submit_batch(
+        self,
+        tasks: list,
+        default_priority: TaskPriority = TaskPriority.NORMAL,
+    ) -> list[str]:
+        """Submit multiple tasks in a single NNG message.
+
+        Each task spec is a dict with: task_name, args (optional), kwargs (optional),
+        priority (optional), eta (optional), countdown (optional).
+
+        Returns list of task IDs. All tasks are submitted atomically — either all
+        are queued or none.
+        """
+        from datetime import datetime, timedelta
+
+        task_objects = []
+        for spec in tasks:
+            task_name = spec["task_name"]
+            args = spec.get("args", ())
+            kwargs = spec.get("kwargs", {})
+            priority = spec.get("priority", default_priority)
+            eta = spec.get("eta")
+            countdown = spec.get("countdown")
+            if countdown is not None:
+                eta = datetime.now() + timedelta(seconds=countdown)
+
+            task = Task(
+                name=task_name, args=args, kwargs=kwargs,
+                priority=priority, eta=eta,
+            )
+            task_objects.append(task)
+
+            # Initialize pending result
+            self.task_results[task.id] = TaskResult(
+                task_id=task.id,
+                status=TaskStatus.PENDING,
+            )
+
+        task_ids = [t.id for t in task_objects]
+
+        if not self.workers:
+            for t in task_objects:
+                self.pending_tasks.append(t)
+            return task_ids
+
+        worker_id, worker_address = next(iter(self.workers))
+        parsed = urlparse(worker_address)
+        host = parsed.hostname or "127.0.0.1"
+        base_port = parsed.port or 5555
+        scheme = parsed.scheme or "tcp"
+        priority_ports = {
+            "critical": base_port,
+            "high": base_port + 1,
+            "normal": base_port + 2,
+            "low": base_port + 3,
+        }
+        priority_address = f"{scheme}://{host}:{priority_ports[default_priority.value]}"
+
+        batch_data = {
+            "action": "batch_submit",
+            "tasks": [t.model_dump() for t in task_objects],
+        }
+
+        for attempt in range(self.retries + 1):
+            try:
+                requester = ReqRepPattern(priority_address, is_server=False)
+                await requester.start()
+                try:
+                    serialized = TaskSerializer.serialize(
+                        batch_data, self.serialization_format
+                    )
+                    await requester.send(serialized)
+                    response_data = await asyncio.wait_for(
+                        requester.recv(), timeout=self.timeout
+                    )
+                    response = TaskSerializer.deserialize(
+                        response_data, self.serialization_format
+                    )
+                    if response.get("batch_accepted"):
+                        logger.info(
+                            f"Batch of {len(task_ids)} tasks accepted: {task_ids}"
+                        )
+                    return task_ids
+                finally:
+                    requester.close()
+            except asyncio.TimeoutError:
+                if attempt == self.retries:
+                    logger.error("Batch submission timed out after retries")
+                    return task_ids
+                await asyncio.sleep(0.1 * (2 ** attempt))
+            except Exception as e:
+                logger.error(f"Error submitting batch: {e}")
+                if attempt == self.retries:
+                    return task_ids
+                await asyncio.sleep(0.1 * (2 ** attempt))
+
+        return task_ids
+
+    async def cancel_task(self, task_id: str) -> bool:
+        """Cancel a task by ID. Returns True if cancellation was accepted."""
+        if not self.workers:
+            logger.warning("No workers discovered, cannot cancel task")
+            return False
+
+        worker_id, worker_address = next(iter(self.workers))
+        parsed = urlparse(worker_address)
+        host = parsed.hostname or "127.0.0.1"
+        base_port = parsed.port or 5555
+        scheme = parsed.scheme or "tcp"
+        result_query_port = base_port + 4
+
+        result_query_address = f"{scheme}://{host}:{result_query_port}"
+
+        try:
+            requester = ReqRepPattern(result_query_address, is_server=False)
+            await requester.start()
+            try:
+                query = {"action": "cancel", "task_id": task_id}
+                query_data = TaskSerializer.serialize(query, self.serialization_format)
+                await requester.send(query_data)
+                response_data = await requester.recv()
+                response = TaskSerializer.deserialize(response_data, self.serialization_format)
+                success = response.get("cancelled", False)
+                if success:
+                    logger.info(f"Task {task_id} cancelled")
+                else:
+                    logger.warning(f"Task {task_id} could not be cancelled: {response}")
+                return success
+            finally:
+                requester.close()
+        except Exception as e:
+            logger.error(f"Error cancelling task {task_id}: {e}")
+            return False
 
     def stop(self):
         """Stop the client."""

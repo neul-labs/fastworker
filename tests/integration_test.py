@@ -27,7 +27,7 @@ async def test_integration():
             "-c",
             """
 import asyncio
-from fastworker.discovery.discovery import ServiceDiscovery
+from fastworker.clients.discovery import ServiceDiscovery
 
 async def run_discovery():
     discovery = ServiceDiscovery("tcp://127.0.0.1:5560")
@@ -56,8 +56,6 @@ asyncio.run(run_discovery())
             "-c",
             """
 import asyncio
-import sys
-sys.path.append('/home/dipankar/Github/fastworker')
 from fastworker.workers.worker import Worker
 from fastworker.tasks.registry import task
 
@@ -90,15 +88,21 @@ asyncio.run(run_worker())
         client = Client(discovery_address="tcp://127.0.0.1:5560")
         await client.start()
 
-        # Submit a task
-        result = await client.delay("add_numbers", 5, 3)
+        # Submit a task - delay() returns task_id string
+        task_id = await client.delay("add_numbers", 5, 3)
+
+        print(f"Task submitted, ID: {task_id}")
+
+        # Wait for result
+        result = await client.get_task_result(task_id, timeout=10.0)
 
         print(f"Task result: {result}")
-        if result.status == "success":
+        if result and result.status.value == "success":
             print(f"Result: {result.result}")
             assert result.result == 8
         else:
-            print(f"Error: {result.error}")
+            error_msg = result.error if result else "No result returned"
+            print(f"Error: {error_msg}")
             assert False, "Task failed"
 
         print("Integration test passed!")

@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen">
+  <div :class="{ dark: isDarkMode }" class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
     <!-- Header -->
-    <header class="bg-indigo-600 text-white shadow-lg">
+    <header class="bg-indigo-600 dark:bg-indigo-800 text-white shadow-lg">
       <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-3">
@@ -17,7 +17,19 @@
                 {{ status.worker_id }}
               </span>
             </span>
-            <button @click="refreshData" class="p-2 rounded-md hover:bg-indigo-500 transition-colors" title="Refresh">
+            <button
+              @click="isDarkMode = !isDarkMode; saveTheme()"
+              class="p-2 rounded-md hover:bg-indigo-500 dark:hover:bg-indigo-700 transition-colors"
+              :title="isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'"
+            >
+              <svg v-if="isDarkMode" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <svg v-else class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            </button>
+            <button @click="refreshData" class="p-2 rounded-md hover:bg-indigo-500 dark:hover:bg-indigo-700 transition-colors" title="Refresh">
               <svg class="h-5 w-5" :class="{ 'animate-spin': loading }" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
@@ -30,13 +42,19 @@
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
       <!-- Error Alert -->
-      <div v-if="error" class="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+      <div v-if="error" class="mb-6 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-200 px-4 py-3 rounded relative" role="alert">
         <span class="block sm:inline">{{ error }}</span>
         <button @click="error = null" class="absolute top-0 bottom-0 right-0 px-4 py-3">
           <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>
         </button>
+      </div>
+
+      <!-- SSE Connection Status -->
+      <div v-if="sseConnected" class="mb-4 text-xs text-green-600 dark:text-green-400 flex items-center">
+        <span class="h-1.5 w-1.5 bg-green-500 rounded-full mr-1.5"></span>
+        Live updates connected
       </div>
 
       <!-- Stats Cards -->
@@ -96,13 +114,8 @@
 
       <!-- Three Column Layout -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <!-- Workers Panel -->
         <WorkersPanel :workers="workers" />
-
-        <!-- Queue Status Panel -->
         <QueuesPanel :queues="queues" />
-
-        <!-- Registered Tasks Panel -->
         <RegisteredTasksPanel :tasks="registeredTasks" />
       </div>
 
@@ -118,9 +131,9 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white border-t mt-8">
+    <footer class="bg-white dark:bg-gray-800 border-t dark:border-gray-700 mt-8 transition-colors">
       <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between text-sm text-gray-500">
+        <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
           <span>FastWorker Management GUI</span>
           <span v-if="lastUpdate">Last updated: {{ lastUpdate }}</span>
         </div>
@@ -157,12 +170,14 @@ export default {
     const loading = ref(false)
     const error = ref(null)
     const lastUpdate = ref(null)
+    const isDarkMode = ref(false)
+    const sseConnected = ref(false)
 
-    // Pagination state
     const currentPage = ref(1)
     const pageSize = ref(20)
 
     let refreshInterval = null
+    let eventSource = null
 
     const fetchData = async () => {
       loading.value = true
@@ -217,15 +232,59 @@ export default {
       await fetchData()
     }
 
+    const connectSSE = () => {
+      if (eventSource) {
+        eventSource.close()
+      }
+
+      eventSource = new EventSource('/api/events')
+
+      eventSource.onopen = () => {
+        sseConnected.value = true
+      }
+
+      eventSource.onerror = () => {
+        sseConnected.value = false
+      }
+
+      // Listen for specific events to trigger lightweight updates
+      const eventTypes = [
+        'task.queued', 'task.started', 'task.success',
+        'task.failure', 'task.failed', 'task.cancelled',
+        'worker.active', 'worker.inactive'
+      ]
+
+      eventTypes.forEach(evt => {
+        eventSource.addEventListener(evt, () => {
+          // Refresh data on task or worker events
+          fetchData()
+        })
+      })
+    }
+
+    const saveTheme = () => {
+      localStorage.setItem('fastworker-dark-mode', isDarkMode.value ? '1' : '0')
+    }
+
+    const loadTheme = () => {
+      const stored = localStorage.getItem('fastworker-dark-mode')
+      isDarkMode.value = stored === '1'
+    }
+
     onMounted(() => {
+      loadTheme()
       fetchData()
-      // Auto-refresh every 5 seconds
-      refreshInterval = setInterval(fetchData, 5000)
+      connectSSE()
+      // Keep polling as fallback (slower interval since we have SSE)
+      refreshInterval = setInterval(fetchData, 15000)
     })
 
     onUnmounted(() => {
       if (refreshInterval) {
         clearInterval(refreshInterval)
+      }
+      if (eventSource) {
+        eventSource.close()
       }
     })
 
@@ -242,8 +301,11 @@ export default {
       lastUpdate,
       currentPage,
       pageSize,
+      isDarkMode,
+      sseConnected,
       refreshData,
-      handlePageChange
+      handlePageChange,
+      saveTheme,
     }
   }
 }

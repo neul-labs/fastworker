@@ -4,12 +4,13 @@ import argparse
 import asyncio
 import importlib
 import logging
-from fastworker.workers.worker import Worker
+
 from fastworker.clients.client import Client
+from fastworker.tasks.models import TaskResult, TaskStatus
 from fastworker.tasks.registry import task_registry
-from fastworker.tasks.models import TaskStatus, TaskResult
 from fastworker.workers.control_plane import ControlPlaneWorker
 from fastworker.workers.subworker import SubWorker
+from fastworker.workers.worker import Worker
 
 # Configure logging
 logging.basicConfig(
@@ -67,6 +68,7 @@ def start_worker(args):
         worker_id=args.worker_id,
         base_address=args.base_address,
         discovery_address=args.discovery_address,
+        concurrency=args.concurrency or 1,
     )
 
     print(f"Starting worker {args.worker_id}")
@@ -101,8 +103,9 @@ def submit_task(args):
             # Use delay() for non-blocking submission (now async)
             task_id = await client.delay(
                 args.task_name,
-                *converted_args,  # Use converted args instead of args.args
+                *converted_args,
                 priority=args.priority,
+                countdown=args.countdown,
             )
 
             print(f"Task submitted with ID: {task_id}")
@@ -153,10 +156,88 @@ def list_tasks(args):
     if args.task_modules:
         load_tasks(args.task_modules)
 
+    if args.list_periodic:
+        periodic = task_registry.get_periodic_tasks()
+        if periodic:
+            print("Periodic tasks:")
+            for name, info in periodic.items():
+                config = info.schedule
+                if config.cron_expression:
+                    schedule_str = f"cron=\"{config.cron_expression}\""
+                else:
+                    schedule_str = f"repeat_interval={config.repeat_interval}s"
+                limits = []
+                if config.repeat_count:
+                    limits.append(f"count={config.repeat_count}")
+                if config.repeat_until:
+                    limits.append(f"until={config.repeat_until}")
+                limit_str = f" ({', '.join(limits)})" if limits else ""
+                print(f"  - {name} [{schedule_str}{limit_str}]")
+        else:
+            print("No periodic tasks registered.")
+        return
+
+    if args.tree:
+        _print_task_tree()
+        return
+
     tasks = task_registry.list_tasks()
     print("Available tasks:")
     for name in tasks:
         print(f"  - {name}")
+
+
+def _print_task_tree():
+    """Print a tree view of tasks organized by module."""
+    from collections import defaultdict
+
+    infos = task_registry.list_task_infos()
+    if not infos:
+        print("No tasks registered.")
+        return
+
+    # Group by module
+    by_module = defaultdict(list)
+    for _name, info in sorted(infos.items()):
+        by_module[info.module].append(info)
+
+    # Split module name into parts for tree
+    module_parts = defaultdict(dict)
+    for mod_name, task_infos in by_module.items():
+        parts = mod_name.split(".")
+        current = module_parts
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        current[parts[-1]] = task_infos
+
+    def _print_level(level, prefix="", is_last=True):
+        connector = "└── " if is_last else "├── "
+        if isinstance(level, list):
+            # List of TaskInfo
+            for i, info in enumerate(level):
+                is_last_task = i == len(level) - 1
+                task_connector = "└── " if is_last_task else "├── "
+                label = info.name
+                if info.schedule:
+                    if info.schedule.cron_expression:
+                        label += f" (cron=\"{info.schedule.cron_expression}\")"
+                    else:
+                        label += f" (repeat_interval={info.schedule.repeat_interval}s)"
+                print(f"{prefix}{task_connector}{label}")
+        else:
+            # Nested dict
+            items = list(level.items())
+            for i, (name, children) in enumerate(items):
+                is_last_item = i == len(items) - 1
+                print(f"{prefix}{connector if i == 0 and not prefix else connector if i == len(items) - 1 else '├── '}{name}")
+                new_prefix = prefix + ("    " if is_last_item else "│   ")
+                _print_level(children, new_prefix, is_last_item)
+
+    # Find root of module tree
+    print("Task tree:")
+    _print_level(module_parts)
 
 
 def start_control_plane(args):
@@ -176,6 +257,7 @@ def start_control_plane(args):
         gui_enabled=not args.no_gui,
         gui_host=args.gui_host,
         gui_port=args.gui_port,
+        concurrency=args.concurrency,
     )
 
     print(f"Starting control plane worker {control_plane.worker_id}")
@@ -204,6 +286,7 @@ def start_subworker(args):
         control_plane_address=args.control_plane_address,
         base_address=args.base_address,
         discovery_address=args.discovery_address,
+        concurrency=args.concurrency,
     )
 
     print(f"Starting subworker {args.worker_id}")
@@ -215,6 +298,30 @@ def start_subworker(args):
     except KeyboardInterrupt:
         print("\nStopping subworker...")
         subworker.stop()
+
+
+def cancel_task(args):
+    """Cancel a task by task ID."""
+    client = Client(discovery_address=args.discovery_address)
+
+    async def do_cancel():
+        try:
+            await client.start()
+            success = await client.cancel_task(args.task_id)
+            if success:
+                print(f"Task {args.task_id} cancelled successfully")
+                return 0
+            else:
+                print(f"Task {args.task_id} could not be cancelled (not found or already terminal)")
+                return 1
+        except Exception as e:
+            print(f"Error cancelling task: {e}")
+            return 1
+        finally:
+            client.stop()
+
+    exit_code = asyncio.run(do_cancel())
+    return exit_code
 
 
 def get_task_status(args):
@@ -239,8 +346,10 @@ def get_task_status(args):
                     print(f"Error: {result.error}")
                 elif result.status == TaskStatus.PENDING:
                     print("Task is still pending (not yet processed)")
-                elif result.status == TaskStatus.STARTED:
+                elif result.status == TaskStatus.RUNNING:
                     print("Task is currently being processed")
+                elif result.status == TaskStatus.CANCELLED:
+                    print(f"Task was cancelled: {result.error}")
 
                 if result.started_at:
                     print(f"Started at: {result.started_at}")
@@ -292,6 +401,12 @@ def main():
         help="Discovery address (default: tcp://127.0.0.1:5550)",
     )
     worker_parser.add_argument("--task-modules", nargs="*", help="Task modules to load")
+    worker_parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Max concurrent task executions (default: 1, env: FASTWORKER_WORKER_CONCURRENCY)",
+    )
     worker_parser.set_defaults(func=start_worker)
 
     # Submit command
@@ -315,11 +430,27 @@ def main():
         action="store_true",
         help="Submit task and return immediately with task ID (non-blocking)",
     )
+    submit_parser.add_argument(
+        "--countdown",
+        type=float,
+        default=None,
+        help="Delay execution by N seconds",
+    )
     submit_parser.set_defaults(func=submit_task)
 
     # List command
     list_parser = subparsers.add_parser("list", help="List available tasks")
     list_parser.add_argument("--task-modules", nargs="*", help="Task modules to load")
+    list_parser.add_argument(
+        "--list-periodic",
+        action="store_true",
+        help="List only periodic/cron tasks with their schedules",
+    )
+    list_parser.add_argument(
+        "--tree",
+        action="store_true",
+        help="Show tasks organized by module tree",
+    )
     list_parser.set_defaults(func=list_tasks)
 
     # Control plane command
@@ -372,6 +503,12 @@ def main():
     control_plane_parser.add_argument(
         "--gui-port", type=int, default=8080, help="Management GUI port (default: 8080)"
     )
+    control_plane_parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Max concurrent task executions (default: 1, env: FASTWORKER_WORKER_CONCURRENCY)",
+    )
     control_plane_parser.set_defaults(func=start_control_plane)
 
     # Subworker command
@@ -395,7 +532,23 @@ def main():
     subworker_parser.add_argument(
         "--task-modules", nargs="*", help="Task modules to load"
     )
+    subworker_parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=None,
+        help="Max concurrent task executions (default: 1, env: FASTWORKER_WORKER_CONCURRENCY)",
+    )
     subworker_parser.set_defaults(func=start_subworker)
+
+    # Cancel command
+    cancel_parser = subparsers.add_parser("cancel", help="Cancel a task by task ID")
+    cancel_parser.add_argument("--task-id", required=True, help="Task ID (UUID)")
+    cancel_parser.add_argument(
+        "--discovery-address",
+        default="tcp://127.0.0.1:5550",
+        help="Discovery address (default: tcp://127.0.0.1:5550)",
+    )
+    cancel_parser.set_defaults(func=cancel_task)
 
     # Status command
     status_parser = subparsers.add_parser("status", help="Get task status by task ID")

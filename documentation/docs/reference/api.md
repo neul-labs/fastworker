@@ -69,6 +69,8 @@ task_id = await client.delay(
     task_name: str,
     *args,
     priority: TaskPriority = TaskPriority.NORMAL,
+    countdown: float = None,       # Delay in seconds before execution
+    eta: datetime = None,           # Absolute execution time
     **kwargs
 ) -> str
 ```
@@ -82,7 +84,9 @@ result = await client.submit_task(
     task_name: str,
     args: tuple = (),
     kwargs: dict = {},
-    priority: TaskPriority = TaskPriority.NORMAL
+    priority: TaskPriority = TaskPriority.NORMAL,
+    countdown: float = None,
+    eta: datetime = None
 ) -> TaskResult
 ```
 
@@ -97,8 +101,31 @@ task_id = await client.delay_with_callback(
     *args,
     callback_data: dict = None,
     priority: TaskPriority = TaskPriority.NORMAL,
+    countdown: float = None,
+    eta: datetime = None,
     **kwargs
 ) -> str
+```
+
+##### `submit_batch()`
+
+Submit multiple tasks atomically in a single network message.
+
+```python
+task_ids = await client.submit_batch(
+    tasks: list[dict],
+    default_priority: TaskPriority = TaskPriority.NORMAL
+) -> list[str]
+```
+
+Each task dict accepts: `task_name` (required), `args`, `kwargs`, `priority`, `countdown`, `eta`.
+
+##### `cancel_task()`
+
+Cancel a queued or running task by ID.
+
+```python
+cancelled = await client.cancel_task(task_id: str) -> bool
 ```
 
 ##### `get_task_result()`
@@ -143,9 +170,21 @@ ControlPlaneWorker(
     serialization_format: SerializationFormat = SerializationFormat.JSON,
     subworker_management_port: int = 5560,
     result_cache_max_size: int = 10000,
-    result_cache_ttl_seconds: int = 3600
+    result_cache_ttl_seconds: int = 3600,
+    concurrency: int = 1
 )
 ```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `worker_id` | str | `"control-plane"` | Worker identifier |
+| `base_address` | str | `"tcp://127.0.0.1:5555"` | Base address for task ports |
+| `discovery_address` | str | `"tcp://127.0.0.1:5550"` | Discovery broadcast address |
+| `serialization_format` | SerializationFormat | `JSON` | Serialization format |
+| `subworker_management_port` | int | `5560` | Port for subworker management |
+| `result_cache_max_size` | int | `10000` | Max cached results |
+| `result_cache_ttl_seconds` | int | `3600` | Cache TTL in seconds |
+| `concurrency` | int | `1` | Max concurrent task executions |
 
 #### Methods
 
@@ -165,9 +204,19 @@ SubWorker(
     control_plane_address: str,
     base_address: str = "tcp://127.0.0.1:5555",
     discovery_address: str = "tcp://127.0.0.1:5550",
-    serialization_format: SerializationFormat = SerializationFormat.JSON
+    serialization_format: SerializationFormat = SerializationFormat.JSON,
+    concurrency: int = 1
 )
 ```
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `worker_id` | str | Yes | Unique subworker identifier |
+| `control_plane_address` | str | Yes | Address of the control plane |
+| `base_address` | str | No | Base address for this subworker |
+| `discovery_address` | str | No | Discovery address |
+| `serialization_format` | SerializationFormat | No | Serialization format |
+| `concurrency` | int | No | Max concurrent task executions |
 
 #### Methods
 
@@ -180,7 +229,7 @@ SubWorker(
 
 ### `Task`
 
-Represents a task to be executed.
+Represents a task to be executed with a formal state machine lifecycle.
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -189,10 +238,17 @@ Represents a task to be executed.
 | `args` | tuple | Positional arguments |
 | `kwargs` | dict | Keyword arguments |
 | `priority` | TaskPriority | Task priority |
+| `state` | TaskStatus | Current state machine state |
+| `retry_count` | int | Number of retry attempts made |
+| `max_retries` | int | Maximum retry attempts (0 = no retries) |
+| `retry_delay` | float | Seconds between retries |
+| `retry_backoff` | float | Exponential backoff multiplier |
+| `timeout` | float | Optional — per-task timeout in seconds |
+| `eta` | datetime | Optional — scheduled execution time |
+| `assigned_worker` | str | Optional — worker assigned to execute |
 | `created_at` | datetime | Creation timestamp |
 | `started_at` | Optional[datetime] | Start timestamp |
 | `completed_at` | Optional[datetime] | Completion timestamp |
-| `status` | TaskStatus | Current status |
 | `result` | Any | Task result |
 | `error` | Optional[str] | Error message if failed |
 
@@ -235,14 +291,19 @@ Task priority levels.
 
 ### `TaskStatus`
 
-Task execution status.
+Task execution status (9-state state machine).
 
 | Value | Description |
 |-------|-------------|
-| `PENDING` | Task waiting for processing |
-| `STARTED` | Task is being processed |
-| `SUCCESS` | Task completed successfully |
-| `FAILURE` | Task failed with error |
+| `PENDING` | Task created, not yet queued |
+| `SCHEDULED` | Task delayed with ETA, waiting for execution time |
+| `QUEUED` | Task in queue, waiting to be assigned |
+| `ASSIGNED` | Task assigned to a worker |
+| `RUNNING` | Task is being processed |
+| `SUCCESS` | Task completed successfully (terminal) |
+| `FAILURE` | Task failed with an error |
+| `RETRYING` | Task is being retried (transitions back to QUEUED) |
+| `CANCELLED` | Task was cancelled (terminal) |
 
 ### `SerializationFormat`
 
@@ -274,6 +335,7 @@ fastworker control-plane [OPTIONS]
 | `--result-cache-size` | `10000` | Maximum cached results |
 | `--result-cache-ttl` | `3600` | Cache TTL in seconds |
 | `--task-modules` | - | Task modules to load |
+| `--concurrency` | `1` | Max concurrent task executions |
 | `--gui-host` | `127.0.0.1` | GUI host |
 | `--gui-port` | `8080` | GUI port |
 | `--no-gui` | - | Disable GUI |
@@ -293,6 +355,7 @@ fastworker subworker [OPTIONS]
 | `--base-address` | No | Base address |
 | `--discovery-address` | No | Discovery address |
 | `--task-modules` | No | Task modules to load |
+| `--concurrency` | No | Max concurrent task executions |
 
 ### `fastworker submit`
 
@@ -307,6 +370,16 @@ fastworker submit [OPTIONS]
 | `--task-name` | Task name to execute |
 | `--args` | Task arguments |
 | `--non-blocking` | Return immediately with task ID |
+| `--countdown` | Delay execution by N seconds |
+| `--eta` | Execute at specific ISO 8601 datetime |
+
+### `fastworker cancel`
+
+Cancel a task by ID.
+
+```bash
+fastworker cancel --task-id <uuid>
+```
 
 ### `fastworker status`
 
@@ -323,3 +396,17 @@ List available tasks.
 ```bash
 fastworker list --task-modules mytasks
 ```
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FASTWORKER_GUI_ENABLED` | `true` | Enable/disable the management GUI |
+| `FASTWORKER_GUI_HOST` | `127.0.0.1` | GUI server host address |
+| `FASTWORKER_GUI_PORT` | `8080` | GUI server port |
+| `FASTWORKER_GUI_API_KEY` | — | API key for write endpoint authentication (Bearer token) |
+| `FASTWORKER_GUI_CORS_ORIGIN` | `*` | Allowed CORS origin (comma-separated) |
+| `FASTWORKER_WORKER_CONCURRENCY` | `1` | Default concurrency for all worker types |
+| `FASTWORKER_SERIALIZATION_FORMAT` | `JSON` | Task serialization format (`JSON` or `PICKLE`) |

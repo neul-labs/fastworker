@@ -1,10 +1,12 @@
 """Example FastAPI application using FastWorker with callbacks."""
 
-from fastapi import FastAPI
-from fastworker import task, Client
-from fastworker.patterns.nng_patterns import PairPattern
-from fastworker.tasks.serializer import TaskSerializer, SerializationFormat
 import asyncio
+
+from fastapi import FastAPI
+
+from fastworker import Client, task
+from fastworker.patterns.nng_patterns import PairPattern
+from fastworker.tasks.serializer import SerializationFormat, TaskSerializer
 
 # Create FastAPI app
 app = FastAPI(title="FastWorker Callback Example")

@@ -22,7 +22,7 @@ def test_task_priority_enum():
 def test_task_status_enum():
     """Test TaskStatus enum values."""
     assert TaskStatus.PENDING.value == "pending"
-    assert TaskStatus.STARTED.value == "started"
+    assert TaskStatus.RUNNING.value == "running"
     assert TaskStatus.SUCCESS.value == "success"
     assert TaskStatus.FAILURE.value == "failure"
 
