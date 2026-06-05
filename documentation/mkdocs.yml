@@ -1,8 +1,9 @@
 site_name: FastWorker
 site_description: A brokerless task queue for Python applications with automatic worker discovery, priority handling, and built-in management GUI.
-site_url: https://neul-labs.github.io/fastworker/
+site_url: https://fastworker.docs.neullabs.com/
 repo_url: https://github.com/neul-labs/fastworker
 repo_name: neul-labs/fastworker
+edit_uri: edit/main/documentation/docs/
 
 theme:
   name: material

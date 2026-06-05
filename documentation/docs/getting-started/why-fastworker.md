@@ -58,7 +58,7 @@ FastWorker eliminates the broker entirely. It uses a control plane with built-in
 - Strict durability guarantees (use a database-backed queue)
 - Teams requiring broker-level HA (active/passive, clustering)
 
-See the full [Limitations & Scope](limitations.md) doc for details.
+See the full [Limitations & Scope](../reference/limitations.md) doc for details.
 
 ## Trade-offs
 
